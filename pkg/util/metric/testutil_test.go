@@ -35,8 +35,8 @@ func withModifiedConfig(f func()) {
 	f()
 }
 
-// waitTimeout return a error if the WaitGroup doesn't return in timeout duration
-func waitTimeout(wg *sync.WaitGroup, after time.Duration) error {
+// waitWgTimeout returns an error if the WaitGroup doesn't return in timeout duration
+func waitWgTimeout(wg *sync.WaitGroup, after time.Duration) error {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
@@ -50,6 +50,31 @@ func waitTimeout(wg *sync.WaitGroup, after time.Duration) error {
 	}
 }
 
+// waitChTimeout returns an error if:
+// 1. OnRecvCheck returns an error
+// 2. timeout happens before the channel running out or OnRecvCheck asking to stop
+func waitChTimeout[T any](
+	ch <-chan T,
+	onRecvCheck func(element T, closed bool) (goOn bool, err error),
+	after time.Duration,
+) error {
+	timeout := time.After(after)
+	for {
+		select {
+		case <-timeout:
+			return errors.New("timeout")
+		case item, ok := <-ch:
+			goOn, err := onRecvCheck(item, !ok)
+			if err != nil {
+				return err
+			}
+			if !ok || !goOn {
+				return nil
+			}
+		}
+	}
+}
+
 func makeDummyClock(startOffset int64) func() int64 {
 	var tick int64 = startOffset - 1
 	return func() int64 {
@@ -59,5 +84,5 @@ func makeDummyClock(startOffset int64) func() int64 {
 
 type dummySwitch struct{}
 
-func (dummySwitch) Start()                        {}
-func (dummySwitch) Stop() (<-chan struct{}, bool) { return nil, false }
+func (dummySwitch) Start() bool                                { return true }
+func (dummySwitch) Stop(graceful bool) (<-chan struct{}, bool) { return nil, false }
