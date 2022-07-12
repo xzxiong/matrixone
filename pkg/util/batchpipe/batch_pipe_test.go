@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metric
+package batchpipe
 
 import (
 	"bytes"
@@ -27,6 +27,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func waitChTimeout[T any](
+	ch <-chan T,
+	onRecvCheck func(element T, closed bool) (goOn bool, err error),
+	after time.Duration,
+) error {
+	timeout := time.After(after)
+	for {
+		select {
+		case <-timeout:
+			return errors.New("timeout")
+		case item, ok := <-ch:
+			goOn, err := onRecvCheck(item, !ok)
+			if err != nil {
+				return err
+			}
+			if !ok || !goOn {
+				return nil
+			}
+		}
+	}
+}
 
 type Pos struct {
 	line    int

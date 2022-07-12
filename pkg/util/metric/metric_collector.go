@@ -24,6 +24,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/container/types"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	pb "github.com/matrixorigin/matrixone/pkg/pb/metric"
+	bp "github.com/matrixorigin/matrixone/pkg/util/batchpipe"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
 )
 
@@ -87,7 +88,7 @@ func (x WithFlushInterval) ApplyTo(o *collectorOpts) {
 }
 
 type metricCollector struct {
-	*BaseBatchPipe[*pb.MetricFamily, string]
+	*bp.BaseBatchPipe[*pb.MetricFamily, string]
 	ieFactory func() ie.InternalExecutor
 	opts      collectorOpts
 }
@@ -101,8 +102,7 @@ func newMetricCollector(factory func() ie.InternalExecutor, opts ...collectorOpt
 		ieFactory: factory,
 		opts:      initOpts,
 	}
-
-	base := NewBaseBatchPipe[*pb.MetricFamily, string](c, PipeWithBatchWorkerNum(c.opts.sqlWorkerNum))
+	base := bp.NewBaseBatchPipe[*pb.MetricFamily, string](c, bp.PipeWithBatchWorkerNum(c.opts.sqlWorkerNum))
 	c.BaseBatchPipe = base
 	return c
 }
@@ -126,16 +126,16 @@ func (c *metricCollector) NewItemBatchHandler() func(batch string) {
 	}
 }
 
-func (c *metricCollector) NewItemBuffer(_ string) ItemBuffer[*pb.MetricFamily, string] {
+func (c *metricCollector) NewItemBuffer(_ string) bp.ItemBuffer[*pb.MetricFamily, string] {
 	return &mfset{
-		Reminder:        NewConstantClock(c.opts.flushInterval),
+		Reminder:        bp.NewConstantClock(c.opts.flushInterval),
 		metricThreshold: c.opts.metricThreshold,
 		sampleThreshold: c.opts.sampleThreshold,
 	}
 }
 
 type mfset struct {
-	Reminder
+	bp.Reminder
 	mfs             []*pb.MetricFamily
 	typ             pb.MetricType
 	rows            int // how many buffered rows

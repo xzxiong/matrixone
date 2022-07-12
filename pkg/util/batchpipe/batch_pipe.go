@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metric
+package batchpipe
 
 import (
 	"bytes"
@@ -26,6 +26,8 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 )
+
+const chanCapConst = 10000
 
 // Name decides which table the owner will go to
 type HasName interface {
@@ -109,7 +111,7 @@ type reminderRegistry struct {
 func newReminderRegistry() *reminderRegistry {
 	return &reminderRegistry{
 		registry: make(map[string]*time.Timer),
-		C:        make(chan string, CHAN_CAPACITY),
+		C:        make(chan string, chanCapConst),
 	}
 }
 
@@ -190,8 +192,8 @@ func NewBaseBatchPipe[T HasName, B any](impl PipeImpl[T, B], opts ...BaseBatchPi
 	return &BaseBatchPipe[T, B]{
 		impl:    impl,
 		opts:    initOpts,
-		itemCh:  make(chan T, CHAN_CAPACITY),
-		batchCh: make(chan B, CHAN_CAPACITY),
+		itemCh:  make(chan T, chanCapConst),
+		batchCh: make(chan B, chanCapConst),
 	}
 }
 
