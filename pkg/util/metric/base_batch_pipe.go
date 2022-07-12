@@ -175,6 +175,7 @@ type BaseBatchPipe[T HasName, B any] struct {
 	dropped           int64
 	itemCh            chan T
 	batchCh           chan B
+	sendingLock       sync.RWMutex
 	mergeStopWg       sync.WaitGroup
 	batchStopWg       sync.WaitGroup
 	batchWorkerCancel context.CancelFunc
@@ -199,6 +200,9 @@ func (bc *BaseBatchPipe[T, B]) SendItem(items ...T) error {
 	if atomic.LoadInt32(&bc.isRunning) == 0 {
 		return moerr.NewWarn("Collector has been stopped")
 	}
+	// avoid data race on itemCh between concurrent sending and closing
+	bc.sendingLock.RLock()
+	defer bc.sendingLock.RUnlock()
 	for _, item := range items {
 		select {
 		case bc.itemCh <- item:
@@ -229,7 +233,9 @@ func (bc *BaseBatchPipe[T, B]) Stop(graceful bool) (<-chan struct{}, bool) {
 	stopCh := make(chan struct{})
 	if graceful {
 		go func() {
+			bc.sendingLock.Lock()
 			close(bc.itemCh)
+			bc.sendingLock.Unlock()
 			bc.mergeStopWg.Wait()
 			close(bc.batchCh)
 			bc.batchStopWg.Wait()
