@@ -527,7 +527,7 @@ func (c *Compile) compileExternScan(n *plan.Node) ([]*Scope, error) {
 		mcpu = 1
 	}
 	ss := make([]*Scope, mcpu)
-	param := &tree.ExternParam{}
+	param := &tree.ExternParam{Ctx: c.ctx}
 	err := json.Unmarshal([]byte(n.TableDef.Createsql), param)
 	if err != nil {
 		return nil, err
@@ -539,9 +539,6 @@ func (c *Compile) compileExternScan(n *plan.Node) ([]*Scope, error) {
 	}
 
 	param.FileService = c.proc.FileService
-	if param.Ctx == nil {
-		param.Ctx = c.ctx
-	}
 	fileList, err := external.ReadDir(param)
 	if err != nil {
 		return nil, err
