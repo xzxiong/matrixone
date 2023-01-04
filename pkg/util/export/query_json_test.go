@@ -87,43 +87,39 @@ func (i *dummyJsonItem) CsvField(row *table.Row) []string {
 var initOnce sync.Once
 
 func prepareGenCsv(b *testing.B, N int) {
-	initOnce.Do(func() {
-		b.Logf("prepareGenCsv do, N: %d", N)
-		defer b.Logf("prepareGenCsv done")
+	b.Logf("prepareGenCsv do, N: %d", N)
+	defer b.Logf("prepareGenCsv done")
 
-		ctx := context.TODO()
-		filePath := path.Join(`../../../mo-data/etl/`, benchmarkDataPath, `dummy.csv`)
-		buf := new(bytes.Buffer)
-		row := dummyJsonTable.GetRow(ctx)
-		for i := 0; i < N; i++ {
-			i := dummyJsonItem{
-				i: int64(i),
-				f: float64(i),
-			}
-			dummyWriteCsvOneLine(ctx, buf, i.CsvField(row))
+	ctx := context.TODO()
+	filePath := path.Join(`../../../mo-data/etl/`, benchmarkDataPath, `dummy.csv`)
+	buf := new(bytes.Buffer)
+	row := dummyJsonTable.GetRow(ctx)
+	for i := 0; i < N; i++ {
+		i := dummyJsonItem{
+			i: int64(i),
+			f: float64(i),
 		}
-		if absPath, err := filepath.Abs(filePath); err != nil {
-			panic(fmt.Sprintf("create folder failed: %v", err))
-		} else {
-			b.Logf("path: %v", absPath)
-		}
-		if err := os.MkdirAll(path.Dir(filePath), fs.ModePerm); err != nil {
-			panic(fmt.Sprintf("create folder failed: %v", err))
-		} else if err = os.WriteFile(filePath, buf.Bytes(), fs.ModePerm); err != nil {
-			panic(fmt.Sprintf("wirte file failed: %v", err))
-		}
+		dummyWriteCsvOneLine(ctx, buf, i.CsvField(row))
+	}
+	if absPath, err := filepath.Abs(filePath); err != nil {
+		panic(fmt.Sprintf("create folder failed: %v", err))
+	} else {
+		b.Logf("path: %v", absPath)
+	}
+	if err := os.MkdirAll(path.Dir(filePath), fs.ModePerm); err != nil {
+		panic(fmt.Sprintf("create folder failed: %v", err))
+	} else if err = os.WriteFile(filePath, buf.Bytes(), fs.ModePerm); err != nil {
+		panic(fmt.Sprintf("wirte file failed: %v", err))
+	}
 
-		db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
-		assert.Nil(b, err)
-		_, err = db.Exec("create database if not exists `test`")
-		assert.Nil(b, err)
-		sql := dummyJsonTable.ToCreateSql(ctx, true)
-		b.Logf("create table: %s", sql)
-		_, err = db.Exec(sql)
-		assert.Nil(b, err)
-
-	})
-
+	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	assert.Nil(b, err)
+	_, err = db.Exec("create database if not exists `test`")
+	assert.Nil(b, err)
+	sql := dummyJsonTable.ToCreateSql(ctx, true)
+	b.Logf("create table: %s", sql)
+	_, err = db.Exec(sql)
+	assert.Nil(b, err)
 }
 
 func dummySetConn(b *testing.B, host string, port int, user string, passwd string, db string) (*sql.DB, error) {
