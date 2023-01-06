@@ -357,7 +357,7 @@ func TestNewMergeNOFiles(t *testing.T) {
 
 	ctx := trace.Generate(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
-	cancel()
+	defer cancel()
 
 	type args struct {
 		ctx  context.Context
