@@ -252,7 +252,7 @@ func startLogService(
 }
 
 func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, stopper *stopper.Stopper, fs fileservice.FileService) error {
-	var writerFactory export.FSWriterFactory
+	var writerFactory table.WriterFactory
 	var err error
 	var UUID string
 	var initWG sync.WaitGroup
@@ -282,7 +282,7 @@ func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, 
 	UUID = strings.ReplaceAll(UUID, " ", "_") // remove space in UUID for filename
 
 	if !SV.DisableTrace || !SV.DisableMetric {
-		writerFactory = export.GetFSWriterFactory(fs, UUID, nodeRole)
+		writerFactory = export.GetWriterFactory(fs, UUID, nodeRole, SV.LogsExtension)
 		_ = table.SetPathBuilder(ctx, SV.PathBuilder)
 	}
 	if !SV.DisableTrace {
@@ -294,7 +294,7 @@ func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, 
 				motrace.EnableTracer(!SV.DisableTrace),
 				motrace.WithBatchProcessMode(SV.BatchProcessor),
 				motrace.WithBatchProcessor(export.NewMOCollector(ctx)),
-				motrace.WithFSWriterFactory(export.GetFSWriterFactory4Trace(fs, UUID, nodeRole)),
+				motrace.WithFSWriterFactory(writerFactory),
 				motrace.WithExportInterval(SV.TraceExportInterval),
 				motrace.WithLongQueryTime(SV.LongQueryTime),
 				motrace.WithSQLExecutor(nil),
@@ -316,7 +316,7 @@ func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, 
 			metric.WithExportInterval(SV.MetricExportInterval),
 			metric.WithMultiTable(SV.MetricMultiTable))
 	}
-	if err = export.InitMerge(ctx, SV.MergeCycle.Duration, SV.MergeMaxFileSize); err != nil {
+	if err = export.InitMerge(ctx, SV.MergeCycle.Duration, SV.MergeMaxFileSize, SV.MergedExtension); err != nil {
 		return err
 	}
 	return nil
