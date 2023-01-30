@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/util/batchpipe"
 	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
@@ -48,19 +49,21 @@ func noopReportError(context.Context, error, int) {}
 
 func init() {
 	time.Local = time.FixedZone("CST", 0) // set time-zone +0000
+	var SV config.ObservabilityParameters
+	SV.SetDefaultValues("v0.test.0")
+	SV.DisableTrace = false
+	SV.BatchProcessor = FileService
+	SV.MetricExportInterval = 15
+	SV.LongQueryTime = 0
+	SV.EnableTraceDebug = true
 	if _, err := Init(
 		context.Background(),
-		EnableTracer(true),
-		WithMOVersion("v0.test.0"),
+		&SV,
 		WithNode("node_uuid", trace.NodeTypeStandalone),
-		WithBatchProcessMode(FileService),
 		WithFSWriterFactory(dummyFSWriterFactory),
 		WithSQLExecutor(func() internalExecutor.InternalExecutor {
 			return nil
 		}),
-		WithExportInterval(15),
-		WithLongQueryTime(0),
-		DebugMode(true),
 	); err != nil {
 		panic(err)
 	}

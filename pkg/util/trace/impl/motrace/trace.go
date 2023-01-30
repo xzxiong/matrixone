@@ -23,16 +23,17 @@ package motrace
 
 import (
 	"context"
-	"github.com/matrixorigin/matrixone/pkg/util/batchpipe"
-	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
+	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
+	"github.com/matrixorigin/matrixone/pkg/util/batchpipe"
 	"github.com/matrixorigin/matrixone/pkg/util/errutil"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
+	"github.com/matrixorigin/matrixone/pkg/util/trace"
 )
 
 var gTracerProvider atomic.Value
@@ -43,18 +44,27 @@ var gSpanContext atomic.Value
 func init() {
 	SetDefaultSpanContext(&trace.SpanContext{})
 	SetDefaultContext(context.Background())
-	tp := newMOTracerProvider(EnableTracer(false))
+	tp := newMOTracerProvider(enableTracer(false))
 	gTracer = tp.Tracer("default")
 	SetTracerProvider(tp)
 }
 
 var inited uint32
 
-func Init(ctx context.Context, opts ...TracerProviderOption) (context.Context, error) {
+func Init(ctx context.Context, SV *config.ObservabilityParameters, opts ...TracerProviderOption) (context.Context, error) {
 	// fix multi-init in standalone
 	if !atomic.CompareAndSwapUint32(&inited, 0, 1) {
 		return trace.ContextWithSpanContext(ctx, *DefaultSpanContext()), nil
 	}
+
+	opts = append(opts,
+		withMOVersion(SV.MoVersion),
+		enableTracer(!SV.DisableTrace),
+		withBatchProcessMode(SV.BatchProcessor),
+		withExportInterval(SV.TraceExportInterval),
+		withLongQueryTime(SV.LongQueryTime),
+		debugMode(SV.EnableTraceDebug),
+	)
 
 	// init TraceProvider
 	SetTracerProvider(newMOTracerProvider(opts...))

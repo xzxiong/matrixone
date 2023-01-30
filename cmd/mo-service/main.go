@@ -288,17 +288,10 @@ func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, 
 	if !SV.DisableTrace {
 		initWG.Add(1)
 		stopper.RunNamedTask("trace", func(ctx context.Context) {
-			if ctx, err = motrace.Init(ctx,
-				motrace.WithMOVersion(SV.MoVersion),
+			if ctx, err = motrace.Init(ctx, &SV,
 				motrace.WithNode(UUID, nodeRole),
-				motrace.EnableTracer(!SV.DisableTrace),
-				motrace.WithBatchProcessMode(SV.BatchProcessor),
 				motrace.WithBatchProcessor(export.NewMOCollector(ctx)),
 				motrace.WithFSWriterFactory(writerFactory),
-				motrace.WithExportInterval(SV.TraceExportInterval),
-				motrace.WithLongQueryTime(SV.LongQueryTime),
-				motrace.WithSQLExecutor(nil),
-				motrace.DebugMode(SV.EnableTraceDebug),
 			); err != nil {
 				panic(err)
 			}
@@ -312,12 +305,9 @@ func initTraceMetric(ctx context.Context, st metadata.ServiceType, cfg *Config, 
 		initWG.Wait()
 	}
 	if !SV.DisableMetric {
-		metric.InitMetric(ctx, nil, &SV, UUID, nodeRole, metric.WithWriterFactory(writerFactory),
-			metric.WithExportInterval(SV.MetricExportInterval),
-			metric.WithUpdateInterval(SV.MetricUpdateStorageUsageInterval.Duration),
-			metric.WithMultiTable(SV.MetricMultiTable))
+		metric.InitMetric(ctx, nil, &SV, UUID, nodeRole, metric.WithWriterFactory(writerFactory))
 	}
-	if err = export.InitMerge(ctx, SV.MergeCycle.Duration, SV.MergeMaxFileSize, SV.MergedExtension); err != nil {
+	if err = export.InitMerge(ctx, &SV); err != nil {
 		return err
 	}
 	return nil

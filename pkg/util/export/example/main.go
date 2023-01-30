@@ -36,6 +36,7 @@ import (
 
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
 	morun "github.com/matrixorigin/matrixone/pkg/common/runtime"
+	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
@@ -47,6 +48,9 @@ import (
 )
 
 func main() {
+
+	var SV config.ObservabilityParameters
+	SV.SetDefaultValues("test")
 
 	ctx := context.Background()
 	logutil.SetupMOLogger(&logutil.LogConfig{
@@ -87,7 +91,10 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	go traceMemStats(ctx)
 
-	if err := export.InitMerge(ctx, 5*time.Minute, 128*mpool.MB, "tae"); err != nil {
+	SV.MergeCycle.Duration = 5 * time.Minute
+	SV.MergeMaxFileSize = 128 * mpool.MB
+	SV.MergedExtension = "tae"
+	if err := export.InitMerge(ctx, &SV); err != nil {
 		panic(err)
 	}
 	dr := morun.NewRuntime(
@@ -98,7 +105,8 @@ func main() {
 			return time.Now().UTC().UnixNano()
 		}, 0)))
 	morun.SetupProcessLevelRuntime(dr)
-	ctx, err = motrace.Init(ctx, motrace.EnableTracer(true))
+	SV.DisableTrace = false
+	ctx, err = motrace.Init(ctx, &SV)
 	if err != nil {
 		panic(err)
 	}

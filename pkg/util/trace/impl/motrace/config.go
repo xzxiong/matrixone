@@ -53,12 +53,12 @@ type tracerProviderConfig struct {
 	idGenerator trace.IDGenerator
 
 	// resource contains attributes representing an entity that produces telemetry.
-	resource *trace.Resource // WithMOVersion, WithNode,
+	resource *trace.Resource // withMOVersion, WithNode,
 
 	// debugMode used in Tracer.Debug
-	debugMode bool // DebugMode
+	debugMode bool // debugMode
 
-	batchProcessMode string         // WithBatchProcessMode
+	batchProcessMode string         // withBatchProcessMode
 	batchProcessor   BatchProcessor // WithBatchProcessor
 
 	// writerFactory gen writer for CSV output
@@ -68,9 +68,9 @@ type tracerProviderConfig struct {
 	// needInit control table schema create
 	needInit bool // WithInitAction
 
-	exportInterval time.Duration //  WithExportInterval
+	exportInterval time.Duration //  withExportInterval
 	// longQueryTime unit ns
-	longQueryTime int64 //  WithLongQueryTime
+	longQueryTime int64 //  withLongQueryTime
 
 	mux sync.RWMutex
 }
@@ -114,7 +114,7 @@ func (f tracerProviderOption) apply(config *tracerProviderConfig) {
 	f(config)
 }
 
-func WithMOVersion(v string) tracerProviderOption {
+func withMOVersion(v string) tracerProviderOption {
 	return func(config *tracerProviderConfig) {
 		config.resource.Put("version", v)
 	}
@@ -130,7 +130,7 @@ func WithNode(uuid string, t string) tracerProviderOption {
 	}
 }
 
-func EnableTracer(enable bool) tracerProviderOption {
+func enableTracer(enable bool) tracerProviderOption {
 	return func(cfg *tracerProviderConfig) {
 		cfg.SetEnable(enable)
 	}
@@ -142,25 +142,25 @@ func WithFSWriterFactory(f table.WriterFactory) tracerProviderOption {
 	})
 }
 
-func WithExportInterval(secs int) tracerProviderOption {
+func withExportInterval(secs int) tracerProviderOption {
 	return tracerProviderOption(func(cfg *tracerProviderConfig) {
 		cfg.exportInterval = time.Second * time.Duration(secs)
 	})
 }
 
-func WithLongQueryTime(secs float64) tracerProviderOption {
+func withLongQueryTime(secs float64) tracerProviderOption {
 	return tracerProviderOption(func(cfg *tracerProviderConfig) {
 		cfg.longQueryTime = int64(float64(time.Second) * secs)
 	})
 }
 
-func DebugMode(debug bool) tracerProviderOption {
+func debugMode(debug bool) tracerProviderOption {
 	return func(cfg *tracerProviderConfig) {
 		cfg.debugMode = debug
 	}
 }
 
-func WithBatchProcessMode(mode string) tracerProviderOption {
+func withBatchProcessMode(mode string) tracerProviderOption {
 	return func(cfg *tracerProviderConfig) {
 		cfg.batchProcessMode = mode
 	}

@@ -57,7 +57,10 @@ import (
 )
 
 func init() {
-	motrace.Init(context.Background(), motrace.EnableTracer(false))
+	var SV config.ObservabilityParameters
+	SV.SetDefaultValues("test")
+	SV.DisableTrace = true
+	motrace.Init(context.Background(), &SV)
 	motrace.DisableLogErrorReport(true)
 }
 

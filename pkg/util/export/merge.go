@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"github.com/matrixorigin/matrixone/pkg/config"
 	"io"
 	"path"
 	"strconv"
@@ -811,8 +812,13 @@ func InitCronExpr(ctx context.Context, duration time.Duration) error {
 var maxFileSize atomic.Int64
 var mergedExtension = table.GetExtension(table.CsvExtension)
 
-func InitMerge(ctx context.Context, mergeCycle time.Duration, filesize int, ext string) error {
+func InitMerge(ctx context.Context, SV *config.ObservabilityParameters) error {
 	var err error
+
+	mergeCycle := SV.MergeCycle.Duration
+	filesize := SV.MergeMaxFileSize
+	ext := SV.MergedExtension
+
 	if mergeCycle > 0 {
 		err = InitCronExpr(ctx, mergeCycle)
 		if err != nil {

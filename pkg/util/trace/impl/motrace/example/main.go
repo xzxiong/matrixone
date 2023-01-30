@@ -18,6 +18,7 @@ import (
 	"context"
 	goErrors "errors"
 	"fmt"
+	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"time"
 
@@ -62,16 +63,18 @@ var dummyFSWriterFactory = func(context.Context, string, *table.Table, time.Time
 
 func bootstrap(ctx context.Context) (context.Context, error) {
 	logutil.SetupMOLogger(&logutil.LogConfig{Format: "console", DisableStore: false})
+	var SV config.ObservabilityParameters
+	SV.SetDefaultValues("v.0.6.0")
+	// config[enableTrace], default: true
+	SV.DisableTrace = false
+	// config[traceBatchProcessor], distributed node should use "FileService" in system_vars_config.toml
+	// "FileService" is not implement yet
+	SV.BatchProcessor = "FileService"
 	// init trace/log/error framework & BatchProcessor
 	return motrace.Init(ctx,
-		motrace.WithMOVersion("v0.6.0"),
+		&SV,
 		// nodeType like CN/DN/LogService; id maybe in config.
 		motrace.WithNode("node_uuid", trace.NodeTypeStandalone),
-		// config[enableTrace], default: true
-		motrace.EnableTracer(true),
-		// config[traceBatchProcessor], distributed node should use "FileService" in system_vars_config.toml
-		// "FileService" is not implement yet
-		motrace.WithBatchProcessMode("FileService"),
 		// WithFSWriterFactory for config[traceBatchProcessor] = "FileService"
 		motrace.WithFSWriterFactory(dummyFSWriterFactory),
 		// WithSQLExecutor for config[traceBatchProcessor] = "InternalExecutor"
