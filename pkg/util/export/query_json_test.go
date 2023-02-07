@@ -51,7 +51,7 @@ func (b *BenchmarkJsonQueryPathBuilder) BuildETLPath(db, name, account string) s
 	return path.Join("/", etlDirectory, etlFilename)
 }
 
-var dummyStatsColumn = table.Column{Name: "stats", Type: "JSON", Default: "{}", Comment: "json fill with key: int64, float64"}
+var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, float64")
 
 var dummyJsonTable = table.Table{
 	Account:            "sys",
@@ -75,8 +75,8 @@ type dummyJsonItem struct {
 
 func (i *dummyJsonItem) CsvField(row *table.Row) []string {
 	row.Reset()
-	row.SetColumnVal(dummyInt64Column, fmt.Sprintf("%d", i.i))
-	row.SetColumnVal(dummyFloat64Column, fmt.Sprintf("%f", i.f))
+	row.SetColumnVal(dummyInt64Column, i.i)
+	row.SetColumnVal(dummyFloat64Column, i.f)
 	m := make(map[string]any)
 	m["int64"] = i.i
 	m["float64"] = i.f
