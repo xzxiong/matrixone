@@ -20,6 +20,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
+	"github.com/matrixorigin/matrixone/pkg/common/mpool"
+	"github.com/matrixorigin/matrixone/pkg/fileservice"
+	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/json"
 	"github.com/stretchr/testify/assert"
@@ -73,7 +76,7 @@ type dummyJsonItem struct {
 	f float64
 }
 
-func (i *dummyJsonItem) CsvField(row *table.Row) []string {
+func (i *dummyJsonItem) FillRow(row *table.Row) {
 	row.Reset()
 	row.SetColumnVal(dummyInt64Column, i.i)
 	row.SetColumnVal(dummyFloat64Column, i.f)
@@ -81,6 +84,10 @@ func (i *dummyJsonItem) CsvField(row *table.Row) []string {
 	m["int64"] = i.i
 	m["float64"] = i.f
 	row.SetColumnVal(dummyStatsColumn, string(json.MustMarshal(&m)))
+}
+
+func (i *dummyJsonItem) CsvField(row *table.Row) []string {
+	i.FillRow(row)
 	return row.ToStrings()
 }
 
@@ -91,7 +98,7 @@ func prepareGenCsv(b *testing.B, N int) {
 	defer b.Logf("prepareGenCsv done")
 
 	ctx := context.TODO()
-	filePath := path.Join(`../../../mo-data/etl/`, benchmarkDataPath, `dummy.csv`)
+	filePath := path.Join(`../../../mo-data/etl/`, benchmarkDataPath, `dummy`)
 	buf := new(bytes.Buffer)
 	row := dummyJsonTable.GetRow(ctx)
 	for i := 0; i < N; i++ {
@@ -111,6 +118,46 @@ func prepareGenCsv(b *testing.B, N int) {
 	} else if err = os.WriteFile(filePath, buf.Bytes(), fs.ModePerm); err != nil {
 		panic(fmt.Sprintf("wirte file failed: %v", err))
 	}
+
+	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	assert.Nil(b, err)
+	_, err = db.Exec("create database if not exists `test`")
+	assert.Nil(b, err)
+	sql := dummyJsonTable.ToCreateSql(ctx, true)
+	b.Logf("create table: %s", sql)
+	_, err = db.Exec(sql)
+	assert.Nil(b, err)
+}
+
+func prepareGenTae(b *testing.B, N int) {
+	b.Logf("prepareGenCsv do, N: %d", N)
+	defer b.Logf("prepareGenCsv done")
+
+	rootDir := `../../../mo-data/etl/`
+	absPath, err := filepath.Abs(rootDir)
+	if err != nil {
+		panic(fmt.Sprintf("get abs path failed: %v", err))
+	}
+	b.Logf("path: %v", absPath)
+
+	mp, err := mpool.NewMPool("test_etl_fs_writer", 0, mpool.NoFixed)
+	assert.Nil(b, err)
+	fservice, err := fileservice.NewLocalFS("test", absPath, mpool.MB)
+	assert.Nil(b, err)
+
+	ctx := context.TODO()
+	filePath := path.Join(benchmarkDataPath, `dummy`)
+	writer := etl.NewTAEWriter(ctx, dummyTable, mp, filePath, fservice)
+	for i := 0; i < N; i++ {
+		row := dummyJsonTable.GetRow(ctx)
+		i := dummyJsonItem{
+			i: int64(i),
+			f: float64(i),
+		}
+		i.CsvField(row)
+		writer.WriteRow(row)
+	}
+	writer.FlushAndClose()
 
 	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
 	assert.Nil(b, err)
@@ -388,6 +435,61 @@ func BenchmarkQuery1kRows(b *testing.B) {
 	}
 	b.Logf("N: %d", b.N)
 	prepareGenCsv(b, 1e4)
+
+	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	assert.Nil(b, err)
+
+	b.ResetTimer()
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				cnt, err := tt.args.action(ctx, db, i)
+				assert.Nil(b, err)
+				assert.Equal(b, 1, cnt)
+			}
+		})
+	}
+}
+
+func BenchmarkQueryTae1kRows(b *testing.B) {
+	syncBenchmarkLock.Lock()
+	defer syncBenchmarkLock.Unlock()
+
+	type args struct {
+		action func(ctx context.Context, db *sql.DB, val int) (int, error)
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "queryInt64",
+			args: args{action: queryInt64},
+		},
+		{
+			name: "queryFloat64",
+			args: args{action: queryFloat64},
+		},
+		{
+			name: "queryJsonInt64",
+			args: args{action: queryJsonInt64},
+		},
+		{
+			name: "queryJsonFloat64",
+			args: args{action: queryJsonFloat64},
+		},
+		{
+			name: "queryJsonInt64ByInt64",
+			args: args{action: queryJsonInt64ByInt64},
+		},
+	}
+
+	ctx := context.TODO()
+	if exist := checkTestConfig(); !exist {
+		b.Skip()
+	}
+	b.Logf("N: %d", b.N)
+	prepareGenTae(b, 1e4)
 
 	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
 	assert.Nil(b, err)
