@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
+	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
 	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
@@ -56,7 +57,7 @@ func (b *BenchmarkJsonQueryPathBuilder) BuildETLPath(db, name, account string) s
 
 var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, float64")
 
-var dummyJsonTable = table.Table{
+var dummyJsonTable = &table.Table{
 	Account:            "sys",
 	Database:           "test",
 	Table:              "dummy_json",
@@ -142,12 +143,15 @@ func prepareGenTae(b *testing.B, N int) {
 
 	mp, err := mpool.NewMPool("test_etl_fs_writer", 0, mpool.NoFixed)
 	assert.Nil(b, err)
-	fservice, err := fileservice.NewLocalFS("test", absPath, mpool.MB)
+	fservice, err := fileservice.NewLocalETLFS(defines.ETLFileServiceName, absPath)
 	assert.Nil(b, err)
 
 	ctx := context.TODO()
 	filePath := path.Join(benchmarkDataPath, `dummy`)
-	writer := etl.NewTAEWriter(ctx, dummyTable, mp, filePath, fservice)
+	err = os.Remove(path.Join(absPath, filePath))
+	assert.Nil(b, err)
+
+	writer := etl.NewTAEWriter(ctx, dummyJsonTable, mp, filePath, fservice)
 	for i := 0; i < N; i++ {
 		row := dummyJsonTable.GetRow(ctx)
 		i := dummyJsonItem{
@@ -157,7 +161,8 @@ func prepareGenTae(b *testing.B, N int) {
 		i.CsvField(row)
 		writer.WriteRow(row)
 	}
-	writer.FlushAndClose()
+	_, err = writer.FlushAndClose()
+	assert.Nil(b, err)
 
 	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
 	assert.Nil(b, err)
