@@ -23,16 +23,19 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
 	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/json"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -134,6 +137,19 @@ func prepareGenTae(b *testing.B, N int) {
 	b.Logf("prepareGenCsv do, N: %d", N)
 	defer b.Logf("prepareGenCsv done")
 
+	err, ctx := generateTae(b, N, `dummy`)
+
+	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	assert.Nil(b, err)
+	_, err = db.Exec("create database if not exists `test`")
+	assert.Nil(b, err)
+	sql := dummyJsonTable.ToCreateSql(ctx, true)
+	b.Logf("create table: %s", sql)
+	_, err = db.Exec(sql)
+	assert.Nil(b, err)
+}
+
+func generateTae(b *testing.B, N int, filename string) (error, context.Context) {
 	rootDir := `../../../mo-data/etl/`
 	absPath, err := filepath.Abs(rootDir)
 	if err != nil {
@@ -147,9 +163,13 @@ func prepareGenTae(b *testing.B, N int) {
 	assert.Nil(b, err)
 
 	ctx := context.TODO()
-	filePath := path.Join(benchmarkDataPath, `dummy`)
+	filePath := path.Join(benchmarkDataPath, filename)
 	err = os.Remove(path.Join(absPath, filePath))
-	assert.Nil(b, err)
+	if err != nil {
+		if e := err.(*os.PathError); e.Err != syscall.ENOENT {
+			assert.Nil(b, err)
+		}
+	}
 
 	writer := etl.NewTAEWriter(ctx, dummyJsonTable, mp, filePath, fservice)
 	for i := 0; i < N; i++ {
@@ -158,20 +178,69 @@ func prepareGenTae(b *testing.B, N int) {
 			i: int64(i),
 			f: float64(i),
 		}
-		i.CsvField(row)
+		i.FillRow(row)
 		writer.WriteRow(row)
 	}
 	_, err = writer.FlushAndClose()
 	assert.Nil(b, err)
 
-	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	return err, ctx
+}
+
+func readTae(b *testing.B, filename string) {
+	rootDir := `../../../mo-data/etl/`
+	absPath, err := filepath.Abs(rootDir)
+	if err != nil {
+		panic(fmt.Sprintf("get abs path failed: %v", err))
+	}
+	b.Logf("path: %v", absPath)
+
+	mp, err := mpool.NewMPool("test_etl_fs_writer", 0, mpool.NoFixed)
 	assert.Nil(b, err)
-	_, err = db.Exec("create database if not exists `test`")
+	fservice, err := fileservice.NewLocalETLFS(defines.ETLFileServiceName, absPath)
 	assert.Nil(b, err)
-	sql := dummyJsonTable.ToCreateSql(ctx, true)
-	b.Logf("create table: %s", sql)
-	_, err = db.Exec(sql)
-	assert.Nil(b, err)
+
+	ctx := context.TODO()
+	filePath := path.Join(benchmarkDataPath, filename)
+
+	entrys, err := fservice.List(context.TODO(), "etl:/"+benchmarkDataPath)
+	require.Nil(b, err)
+	if len(entrys) == 0 {
+		b.Skip()
+	}
+	require.Equal(b, 1, len(entrys))
+	require.Equal(b, filename, entrys[0].Name)
+
+	fileSize := entrys[0].Size
+
+	r, err := etl.NewTaeReader(ctx, dummyJsonTable, filePath, fileSize, fservice, mp)
+
+	// read data
+	batchs, err := r.ReadAll(ctx)
+	require.Nil(b, err)
+
+	readCnt := 0
+	for batIDX, bat := range batchs {
+		for _, vec := range bat.Vecs {
+			rows, err := etl.GetVectorArrayLen(context.TODO(), vec)
+			require.Nil(b, err)
+			b.Logf("calculate length: %d, vec.Length: %d, type: %s", rows, vec.Length(), vec.Typ.String())
+		}
+		rows := bat.Vecs[0].Length()
+		ctn := strings.Builder{}
+		for rowId := 0; rowId < rows; rowId++ {
+			for _, vec := range bat.Vecs {
+				val, err := etl.ValToString(context.TODO(), vec, rowId)
+				require.Nil(b, err)
+				ctn.WriteString(val)
+				ctn.WriteString(",")
+			}
+			ctn.WriteRune('\n')
+		}
+		b.Logf("batch %d: \n%s", batIDX, ctn.String())
+		//t.Logf("read batch %d", batIDX)
+		readCnt += rows
+	}
 }
 
 func dummySetConn(b *testing.B, host string, port int, user string, passwd string, db string) (*sql.DB, error) {
@@ -251,23 +320,45 @@ var dummyQuoteFieldFunc = func(ctx context.Context, buf *bytes.Buffer, value str
 	return value
 }
 
+func queryExist(ctx context.Context, db *sql.DB, i int) (int, error) {
+	var val string
+	const sql = `select __mo_filepath from test.dummy_json limit 1;`
+	count := 0
+	logutil.Infof("sql: %s", sql)
+	rows, err := db.QueryContext(ctx, sql)
+	if err != nil {
+		return count, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&val)
+		if err != nil {
+			return 0, err
+		}
+		logutil.Infof("__mo_filepath: %s", val)
+		count++
+	}
+	return count, nil
+}
+
 func queryInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val int64
 	const sql = `select int64 from test.dummy_json where int64 = ?;`
 	count := 0
-	//for i := 0; i < N; i++ {
+	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
 	}
 	for rows.Next() {
-		rows.Scan(&val)
+		err = rows.Scan(&val)
+		if err != nil {
+			return 0, err
+		}
 		if val != int64(i) {
 			return 0, moerr.NewInternalError(ctx, "read error: %v", err)
 		}
 		count++
 	}
-	//}
 	return count, nil
 }
 
@@ -275,6 +366,7 @@ func queryFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val float64
 	const sql = `select float64 from test.dummy_json where float64 = ?;`
 	count := 0
+	logutil.Infof("sql: %s", sql)
 	//for i := 0; i < N; i++ {
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
@@ -296,6 +388,7 @@ func queryJsonInt64ByInt64(ctx context.Context, db *sql.DB, i int) (int, error) 
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.int64'))  from test.dummy_json where int64  = ?;`
 	count := 0
 	//for i := 0; i < N; i++ {
+	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -315,7 +408,7 @@ func queryJsonInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val int64
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.int64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats, '$.int64'))  = ?;`
 	count := 0
-	//for i := 0; i < N; i++ {
+	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -327,14 +420,13 @@ func queryJsonInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 		}
 		count++
 	}
-	//}
 	return count, nil
 }
 func queryJsonFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val float64
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.float64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats, '$.float64'))  = ?;`
 	count := 0
-	//for i := 0; i < N; i++ {
+	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -346,7 +438,6 @@ func queryJsonFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 		}
 		count++
 	}
-	//}
 	return count, nil
 }
 
@@ -464,9 +555,15 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 		action func(ctx context.Context, db *sql.DB, val int) (int, error)
 	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		execCnt int
+		args    args
 	}{
+		{
+			name:    "queryExist",
+			args:    args{action: queryExist},
+			execCnt: 1,
+		},
 		{
 			name: "queryInt64",
 			args: args{action: queryInt64},
@@ -498,15 +595,31 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 
 	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
 	assert.Nil(b, err)
+	err = db.Ping()
+	assert.Nil(b, err)
 
 	b.ResetTimer()
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
+				if tt.execCnt > 0 && i >= tt.execCnt {
+					break
+				}
 				cnt, err := tt.args.action(ctx, db, i)
 				assert.Nil(b, err)
 				assert.Equal(b, 1, cnt)
 			}
 		})
 	}
+}
+
+func BenchmarkWriteRead(b *testing.B) {
+	syncBenchmarkLock.Lock()
+	defer syncBenchmarkLock.Unlock()
+
+	rows := int(1e4)
+	filename := `dummy`
+	generateTae(b, rows, filename)
+	readTae(b, filename)
+
 }
