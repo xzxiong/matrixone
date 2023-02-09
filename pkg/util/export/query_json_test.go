@@ -550,7 +550,7 @@ func BenchmarkQuery1kRows(b *testing.B) {
 	}
 }
 
-func BenchmarkQueryTae1wRows(b *testing.B) {
+func BenchmarkQueryTae10wRows(b *testing.B) {
 	syncBenchmarkLock.Lock()
 	defer syncBenchmarkLock.Unlock()
 
@@ -589,7 +589,7 @@ func BenchmarkQueryTae1wRows(b *testing.B) {
 		b.Skip()
 	}
 	b.Logf("N: %d", b.N)
-	prepareGenTae(b, 1e5)
+	prepareGenTae(b, 1e6)
 
 	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
 	assert.Nil(b, err)
