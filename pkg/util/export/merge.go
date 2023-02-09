@@ -126,13 +126,15 @@ func WithMinFilesMerge(files int) MergeOption {
 
 // serviceInited handle Merge as service
 var serviceInited uint32
+var gMergeService *Merge
 
 func NewMergeService(ctx context.Context, opts ...MergeOption) (*Merge, bool, error) {
 	// fix multi-init in standalone
 	if !atomic.CompareAndSwapUint32(&serviceInited, 0, 1) {
-		return nil, true, nil
+		return gMergeService, true, nil
 	}
 	m, err := NewMerge(ctx, opts...)
+	gMergeService = m
 	return m, false, err
 }
 

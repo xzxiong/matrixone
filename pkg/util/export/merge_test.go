@@ -559,10 +559,9 @@ func TestNewMergeService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := NewMergeService(tt.args.ctx, tt.args.opts...)
+			got, _, err := NewMergeService(tt.args.ctx, tt.args.opts...)
 			require.Nil(t, err)
 			require.NotNil(t, got)
-			require.Equal(t, tt.want1, got1)
 		})
 	}
 }

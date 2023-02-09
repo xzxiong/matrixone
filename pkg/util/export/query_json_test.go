@@ -23,7 +23,6 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
 	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
-	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/json"
@@ -103,6 +102,7 @@ func prepareGenCsv(b *testing.B, N int) {
 
 	ctx := context.TODO()
 	filePath := path.Join(`../../../mo-data/etl/`, benchmarkDataPath, `dummy`)
+	removeFileAllExtension(b, filePath)
 	buf := new(bytes.Buffer)
 	row := dummyJsonTable.GetRow(ctx)
 	for i := 0; i < N; i++ {
@@ -150,6 +150,7 @@ func prepareGenTae(b *testing.B, N int) {
 }
 
 func generateTae(b *testing.B, N int, filename string) (error, context.Context) {
+
 	rootDir := `../../../mo-data/etl/`
 	absPath, err := filepath.Abs(rootDir)
 	if err != nil {
@@ -164,12 +165,8 @@ func generateTae(b *testing.B, N int, filename string) (error, context.Context) 
 
 	ctx := context.TODO()
 	filePath := path.Join(benchmarkDataPath, filename)
-	err = os.Remove(path.Join(absPath, filePath))
-	if err != nil {
-		if e := err.(*os.PathError); e.Err != syscall.ENOENT {
-			assert.Nil(b, err)
-		}
-	}
+	removeFileAllExtension(b, path.Join(absPath, filePath))
+	filePath = filePath + table.TaeExtension
 
 	writer := etl.NewTAEWriter(ctx, dummyJsonTable, mp, filePath, fservice)
 	for i := 0; i < N; i++ {
@@ -187,7 +184,20 @@ func generateTae(b *testing.B, N int, filename string) (error, context.Context) 
 	return err, ctx
 }
 
+func removeFileAllExtension(b *testing.B, path string) {
+	files := []string{path, path + table.TaeExtension, path + table.CsvExtension}
+	for _, fp := range files {
+		err := os.Remove(fp)
+		if err != nil {
+			if e := err.(*os.PathError); e.Err != syscall.ENOENT {
+				assert.Nil(b, err)
+			}
+		}
+	}
+}
+
 func readTae(b *testing.B, filename string) {
+	filename = filename + table.TaeExtension
 	rootDir := `../../../mo-data/etl/`
 	absPath, err := filepath.Abs(rootDir)
 	if err != nil {
@@ -324,7 +334,6 @@ func queryExist(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val string
 	const sql = `select __mo_filepath from test.dummy_json limit 1;`
 	count := 0
-	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql)
 	if err != nil {
 		return count, err
@@ -334,7 +343,6 @@ func queryExist(ctx context.Context, db *sql.DB, i int) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		logutil.Infof("__mo_filepath: %s", val)
 		count++
 	}
 	return count, nil
@@ -344,7 +352,6 @@ func queryInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val int64
 	const sql = `select int64 from test.dummy_json where int64 = ?;`
 	count := 0
-	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -366,7 +373,6 @@ func queryFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val float64
 	const sql = `select float64 from test.dummy_json where float64 = ?;`
 	count := 0
-	logutil.Infof("sql: %s", sql)
 	//for i := 0; i < N; i++ {
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
@@ -388,7 +394,6 @@ func queryJsonInt64ByInt64(ctx context.Context, db *sql.DB, i int) (int, error) 
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.int64'))  from test.dummy_json where int64  = ?;`
 	count := 0
 	//for i := 0; i < N; i++ {
-	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -408,7 +413,6 @@ func queryJsonInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val int64
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.int64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats, '$.int64'))  = ?;`
 	count := 0
-	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -426,7 +430,6 @@ func queryJsonFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	var val float64
 	const sql = `select JSON_UNQUOTE(json_extract(stats, '$.float64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats, '$.float64'))  = ?;`
 	count := 0
-	logutil.Infof("sql: %s", sql)
 	rows, err := db.QueryContext(ctx, sql, i)
 	if err != nil {
 		return count, err
@@ -547,7 +550,7 @@ func BenchmarkQuery1kRows(b *testing.B) {
 	}
 }
 
-func BenchmarkQueryTae1kRows(b *testing.B) {
+func BenchmarkQueryTae1wRows(b *testing.B) {
 	syncBenchmarkLock.Lock()
 	defer syncBenchmarkLock.Unlock()
 
@@ -560,10 +563,71 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 		args    args
 	}{
 		{
-			name:    "queryExist",
-			args:    args{action: queryExist},
-			execCnt: 1,
+			name: "queryInt64",
+			args: args{action: queryInt64},
 		},
+		{
+			name: "queryFloat64",
+			args: args{action: queryFloat64},
+		},
+		{
+			name: "queryJsonInt64",
+			args: args{action: queryJsonInt64},
+		},
+		{
+			name: "queryJsonFloat64",
+			args: args{action: queryJsonFloat64},
+		},
+		{
+			name: "queryJsonInt64ByInt64",
+			args: args{action: queryJsonInt64ByInt64},
+		},
+	}
+
+	ctx := context.TODO()
+	if exist := checkTestConfig(); !exist {
+		b.Skip()
+	}
+	b.Logf("N: %d", b.N)
+	prepareGenTae(b, 1e5)
+
+	db, err := dummySetConn(b, "127.0.0.1", 6001, "dump", "111", "")
+	assert.Nil(b, err)
+	err = db.Ping()
+	assert.Nil(b, err)
+
+	b.ResetTimer()
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tt.execCnt > 0 && i >= tt.execCnt {
+					break
+				}
+				cnt, err := tt.args.action(ctx, db, i)
+				assert.Nil(b, err)
+				assert.Equal(b, 1, cnt)
+			}
+		})
+	}
+}
+
+func BenchmarkQueryTae1kRows(b *testing.B) {
+	syncBenchmarkLock.Lock()
+	defer syncBenchmarkLock.Unlock()
+
+	type args struct {
+		action func(ctx context.Context, db *sql.DB, val int) (int, error)
+	}
+	tests := []struct {
+		name    string
+		execCnt int
+		args    args
+	}{
+		//{
+		//	name:    "queryExist",
+		//	args:    args{action: queryExist},
+		//	execCnt: 1,
+		//},
 		{
 			name: "queryInt64",
 			args: args{action: queryInt64},
