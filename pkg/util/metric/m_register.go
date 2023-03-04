@@ -56,4 +56,5 @@ func init() {
 	registerSubSystem(&SubSystem{"server", "MO Server status, observe from inside", true})
 	registerSubSystem(&SubSystem{"process", "MO process status", false})
 	registerSubSystem(&SubSystem{"sys", "OS status", false})
+	registerSubSystem(&SubSystem{"fs", "FileService status", false})
 }
