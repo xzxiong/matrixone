@@ -48,10 +48,10 @@ func (m *MemCache) Read(
 ) (
 	err error,
 ) {
-	metric.MemCacheReadCounter().Inc()
 
 	numHit := 0
 	defer func() {
+		metric.MemCacheReadCounter(numHit).Inc()
 		if m.stats != nil {
 			atomic.AddInt64(&m.stats.NumRead, int64(len(vector.Entries)))
 			atomic.AddInt64(&m.stats.NumHit, int64(numHit))
