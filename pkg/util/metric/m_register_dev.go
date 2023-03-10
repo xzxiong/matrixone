@@ -29,6 +29,16 @@ var FSMemCacheFactory = NewCounterVec(
 	false,
 )
 
+// FSMemCacheCounter accept typ as val in [hit, miss], return the counter you need.
+// You can do the count like:
+//
+//	FSMemCacheCounter("hit").Add(number_of_hit)
+//
+// or FSMemCacheCounter("miss").Add(number_of_miss)
+func FSMemCacheCounter(typ string) Counter {
+	return FSMemCacheFactory.WithLabelValues(typ)
+}
+
 func init() {
 	RegisterSubSystem(&SubSystem{"fs", "filesystem status", false})
 }
