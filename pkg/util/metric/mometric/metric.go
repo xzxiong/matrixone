@@ -79,7 +79,7 @@ func InitMetric(ctx context.Context, ieFactory func() ie.InternalExecutor, SV *c
 	} else {
 		moCollector = newMetricCollector(ieFactory, WithFlushInterval(initOpts.exportInterval))
 	}
-	moExporter = newMetricExporter(registry, moCollector, nodeUUID, role)
+	moExporter = newMetricExporter(registry, moCollector, nodeUUID, role, metric.GetGatherInterval())
 
 	// register metrics and create tables
 	registerAllMetrics()
@@ -93,6 +93,8 @@ func InitMetric(ctx context.Context, ieFactory func() ie.InternalExecutor, SV *c
 	moCollector.Start(serviceCtx)
 	moExporter.Start(serviceCtx)
 	metric.SetMetricExporter(moExporter)
+
+	registerFileService(serviceCtx, nodeUUID, role, initOpts)
 
 	if metric.GetExportToProm() {
 		// http.HandleFunc("/query", makeDebugHandleFunc(ieFactory))
@@ -115,21 +117,46 @@ func InitMetric(ctx context.Context, ieFactory func() ie.InternalExecutor, SV *c
 	logutil.Infof("metric with UpdateStorageUsageInterval: %v", initOpts.updateInterval)
 }
 
+func registerFileService(ctx context.Context, nodeUUID, role string, initOpts InitOptions) {
+	switch strings.ToUpper(role) {
+	case "CN", "DN":
+		registry := prom.NewRegistry()
+		for _, c := range metric.FSCollectors {
+			registry.MustRegister(c)
+		}
+		c := newMetricLogCollector(WithFlushInterval(3 * time.Second))
+		e := newMetricExporter(registry, c, nodeUUID, role, initOpts.metricLogGatherInterval /* new config only for MetricLog */)
+		c.Start(ctx)
+		e.Start(ctx)
+		collectors = append(collectors, c)
+		exporters = append(exporters, e)
+	default:
+		return
+	}
+}
+
+var collectors = []MetricCollector{}
+var exporters = []metric.MetricExporter{}
+
 func StopMetricSync() {
 	if !atomic.CompareAndSwapUint32(&inited, 1, 0) {
 		return
 	}
-	if moCollector != nil {
-		if ch, effect := moCollector.Stop(true); effect {
-			<-ch
+	for idx, c := range collectors {
+		if c != nil {
+			if ch, effect := c.Stop(true); effect {
+				<-ch
+			}
+			collectors[idx] = nil
 		}
-		moCollector = nil
 	}
-	if moExporter != nil {
-		if ch, effect := moExporter.Stop(true); effect {
-			<-ch
+	for idx, e := range exporters {
+		if e != nil {
+			if ch, effect := e.Stop(true); effect {
+				<-ch
+			}
+			exporters[idx] = nil
 		}
-		moExporter = nil
 	}
 	if statusSvr != nil {
 		_ = statusSvr.Shutdown(context.TODO())
