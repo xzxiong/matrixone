@@ -35,17 +35,19 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/pb/task"
+	"github.com/matrixorigin/matrixone/pkg/sql/colexec/external"
 	"github.com/matrixorigin/matrixone/pkg/taskservice"
 	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 
-	"github.com/matrixorigin/simdcsv"
 	"go.uber.org/zap"
 )
 
 const LoggerNameETLMerge = "ETLMerge"
 const LoggerNameContentReader = "ETLContentReader"
+
+const CacheSize = 32 * mpool.MB
 
 // ========================
 // handle merge
@@ -420,22 +422,24 @@ type ContentReader struct {
 	idx     int
 	length  int
 	content [][]string
+	maxSize uint64
 
 	logger *log.MOLogger
-	reader *simdcsv.Reader
+	reader *external.MOCsvReader
 	raw    io.ReadCloser
 }
 
 // BatchReadRows ~= 20MB rawlog file has about 3700+ rows
 const BatchReadRows = 4000
 
-func NewContentReader(ctx context.Context, path string, reader *simdcsv.Reader, raw io.ReadCloser) *ContentReader {
+func NewContentReader(ctx context.Context, path string, reader *external.MOCsvReader, raw io.ReadCloser, maxBatchSize uint64) *ContentReader {
 	logger := runtime.ProcessLevelRuntime().Logger().WithContext(ctx).Named(LoggerNameContentReader)
 	return &ContentReader{
 		ctx:     ctx,
 		path:    path,
 		length:  0,
 		content: make([][]string, BatchReadRows),
+		maxSize: maxBatchSize,
 		logger:  logger,
 		reader:  reader,
 		raw:     raw,
@@ -444,21 +448,17 @@ func NewContentReader(ctx context.Context, path string, reader *simdcsv.Reader, 
 
 func (s *ContentReader) ReadLine() ([]string, error) {
 	if s.idx == s.length && s.reader != nil {
-		var cnt int
-		var err error
-		s.content, cnt, err = s.reader.Read(BatchReadRows, s.ctx, s.content)
+		cnt, finish, err := s.reader.ReadLimitSize(BatchReadRows, s.ctx, s.maxSize, s.content)
 		if err != nil {
 			return nil, err
 		} else if s.content == nil {
 			s.logger.Error("ContentReader.ReadLine.nil", logutil.PathField(s.path),
 				zap.Bool("nil", s.content == nil),
 				zap.Error(s.ctx.Err()),
-				zap.Bool("SupportedCPU", simdcsv.SupportedCPU()),
 			)
 			return nil, moerr.NewInternalError(s.ctx, "read files meet context Done")
 		}
-		if cnt < BatchReadRows {
-			//s.reader.Close() // DO NOT call, because it is a forever loop with empty op.
+		if finish {
 			s.reader = nil
 			s.raw.Close()
 			s.raw = nil
@@ -466,9 +466,7 @@ func (s *ContentReader) ReadLine() ([]string, error) {
 		}
 		s.idx = 0
 		s.length = cnt
-		s.logger.Debug("ContentReader.ReadLine", logutil.PathField(s.path), zap.Int("rows", cnt),
-			zap.Bool("SupportedCPU", simdcsv.SupportedCPU()),
-		)
+		s.logger.Debug("ContentReader.ReadLine", logutil.PathField(s.path), zap.Int("rows", cnt))
 	}
 	if s.idx < s.length {
 		idx := s.idx
@@ -479,7 +477,6 @@ func (s *ContentReader) ReadLine() ([]string, error) {
 				zap.Bool("nil", s.content == nil),
 				zap.Int("cached", len(s.content)),
 				zap.Int("idx", idx),
-				zap.Bool("SupportedCPU", simdcsv.SupportedCPU()),
 			)
 		}
 		return s.content[idx], nil
@@ -545,14 +542,14 @@ func NewCSVReader(ctx context.Context, fs fileservice.FileService, path string) 
 	}
 
 	// parse csv content
-	simdCsvReader := simdcsv.NewReaderWithOptions(reader,
-		table.CommonCsvOptions.FieldTerminator,
+	csvReader := external.NewReaderWithOptions(reader,
+		rune(table.CommonCsvOptions.FieldTerminator),
 		'#',
 		true,
 		true)
 
 	// return content Reader
-	return NewContentReader(ctx, path, simdCsvReader, reader), nil
+	return NewContentReader(ctx, path, csvReader, reader, CacheSize), nil
 }
 
 var _ ETLWriter = (*ContentWriter)(nil)
