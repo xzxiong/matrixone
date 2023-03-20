@@ -372,8 +372,6 @@ github.com/klauspost/compress v1.11.7/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdYs
 github.com/klauspost/compress v1.13.6 h1:P76CopJELS0TiO2mebmnzgWaajssP/EszplttgQxcgc=
 github.com/klauspost/compress v1.13.6/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47etQ6QUkpK6sk=
 github.com/klauspost/cpuid v1.2.1/go.mod h1:Pj4uuM528wm8OyEC2QMXAi2YiTZ96dNQPGgoMS4s3ek=
-github.com/klauspost/cpuid/v2 v2.0.3 h1:DNljyrHyxlkk8139OXIAAauCwV8eQGDD6Z8YqnDXdZw=
-github.com/klauspost/cpuid/v2 v2.0.3/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.3/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
@@ -396,8 +394,6 @@ github.com/matrixorigin/goutils v1.3.1-0.20220604063047-388d67b4dbc4 h1:+SmZP2bG
 github.com/matrixorigin/goutils v1.3.1-0.20220604063047-388d67b4dbc4/go.mod h1:LIHvF0fflR+zyXUQFQOiHPpKANf3UIr7DFIv5CBPOoU=
 github.com/matrixorigin/memberlist v0.4.1-0.20221125074841-7595e1626d36 h1:JxDUpqN51LbPF7+bAqIBqGq9atInx8JKihm8J3J9/ME=
 github.com/matrixorigin/memberlist v0.4.1-0.20221125074841-7595e1626d36/go.mod h1:yvyXLpo0QaGE59Y7hDTsTzDD25JYBZ4mHgHUZ8lrOI0=
-github.com/matrixorigin/simdcsv v0.0.0-20230210060146-09b8e45209dd h1:DvqhuH3kOpsE6vXZA5WEaRNAUUUcf44S1p5VInbjdfU=
-github.com/matrixorigin/simdcsv v0.0.0-20230210060146-09b8e45209dd/go.mod h1:79jCHry8mER+PwqF5EMG3ZE4b0lflH1IE/zF3Zs6lR8=
 github.com/matrixorigin/vfs v0.2.1-0.20220616104132-8852fd867376 h1:1XpEh8nPx1yFTeTFMj/aMipEiilDhQToQS8gjEU2HxM=
 github.com/matrixorigin/vfs v0.2.1-0.20220616104132-8852fd867376/go.mod h1:LOatfyR8Xeej1jbXybwYGVfCccR0u+BQRG9xg7BD7xo=
 github.com/mattn/go-colorable v0.1.2/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=
