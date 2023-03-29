@@ -30,6 +30,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	pbpipeline "github.com/matrixorigin/matrixone/pkg/pb/pipeline"
 	"github.com/matrixorigin/matrixone/pkg/pb/timestamp"
+	"github.com/matrixorigin/matrixone/pkg/perfcounter"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/connector"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/group"
@@ -63,6 +64,7 @@ func PrintScope(prefix []byte, ss []*Scope) {
 // Run read data from storage engine and run the instructions of scope.
 func (s *Scope) Run(c *Compile) (err error) {
 	s.Proc.Ctx = context.WithValue(s.Proc.Ctx, defines.EngineKey{}, c.e)
+	s.Proc.Ctx = perfcounter.WithCounterSet(s.Proc.Ctx, &c.s3CounterSet)
 	p := pipeline.New(s.DataSource.Attributes, s.Instructions, s.Reg)
 	if s.DataSource.Bat != nil {
 		if _, err = p.ConstRun(s.DataSource.Bat, s.Proc); err != nil {
