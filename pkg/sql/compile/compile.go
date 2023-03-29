@@ -119,7 +119,7 @@ func (c *Compile) Compile(ctx context.Context, pn *plan.Plan, u any, fill func(a
 	// Compile may exec some function that need engine.Engine.
 	c.proc.Ctx = context.WithValue(c.proc.Ctx, defines.EngineKey{}, c.e)
 	// Compile add S3Counter
-	ctx = perfcounter.WithCounterSet(ctx, &c.s3CounterSet)
+	c.ctx = perfcounter.WithCounterSet(c.ctx, &c.s3CounterSet)
 	// generate logic pipeline for query.
 	c.scope, err = c.compileScope(ctx, pn)
 	if err != nil {
