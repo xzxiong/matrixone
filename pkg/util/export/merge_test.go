@@ -139,6 +139,12 @@ var newFilePath = func(tbl *table.Table, ts time.Time) string {
 	filepath := path.Join(p, filename)
 	return filepath
 }
+var newTAEFilePath = func(tbl *table.Table, ts time.Time) string {
+	filename := tbl.PathBuilder.NewLogFilename(tbl.GetName(), "uuid", "node", ts, table.TaeExtension)
+	p := tbl.PathBuilder.Build(tbl.Account, table.MergeLogTypeLogs, ts, tbl.Database, tbl.GetName())
+	filepath := path.Join(p, filename)
+	return filepath
+}
 
 func initLogsFile(ctx context.Context, fs fileservice.FileService, tbl *table.Table, ts time.Time) error {
 	mux.Lock()

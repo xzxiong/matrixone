@@ -16,6 +16,7 @@ package export
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -268,6 +269,113 @@ func (m *Merge) Main(ctx context.Context, ts time.Time) error {
 	}
 
 	return err
+}
+
+func (m *Merge) ListRange(ctx context.Context) error {
+	var files = make([]*FileMeta, 0, 1000)
+	var totalSize int64
+
+	accounts, err := m.FS.List(ctx, "/")
+	if err != nil {
+		return err
+	}
+	if len(accounts) == 0 {
+		m.logger.Info("merge find empty data")
+		return nil
+	}
+	m.logger.Debug(fmt.Sprintf("merge task with max file: %v MB", m.MaxFileSize/mpool.MB))
+	for _, account := range accounts {
+		if !account.IsDir {
+			m.logger.Warn(fmt.Sprintf("path is not dir: %s", account.Name))
+			continue
+		}
+		targetPath := m.pathBuilder.Build(account.Name, table.MergeLogTypeLogs, table.ETLParamTSAll, m.Table.GetDatabase(), m.Table.GetName())
+
+		rootPaths, err := m.getAllTargetPath(ctx, targetPath)
+		if err != nil {
+			return err
+		}
+
+		// get all file entry
+		for _, rootPath := range rootPaths {
+			m.logger.Info("start merge", logutil.TableField(m.Table.GetIdentify()), logutil.PathField(rootPath),
+				zap.String("metadata.ID", m.Task.Metadata.ID))
+
+			fileEntrys, err := m.FS.List(ctx, rootPath)
+			if err != nil {
+				// fixme: m.logger.Error()
+				return err
+			}
+			files = files[:0]
+			totalSize = 0
+			for _, f := range fileEntrys {
+				filepath := path.Join(rootPath, f.Name)
+				totalSize += f.Size
+				files = append(files, &FileMeta{filepath, f.Size})
+				if totalSize > m.MaxFileSize {
+					if err = m.doMergeFiles(ctx, account.Name, files, totalSize); err != nil {
+						m.logger.Error(fmt.Sprintf("merge task meet error: %v", err))
+					}
+					files = files[:0]
+					totalSize = 0
+				}
+			}
+
+			if len(files) > 0 {
+				if err = m.doMergeFiles(ctx, account.Name, files, 0); err != nil {
+					m.logger.Warn(fmt.Sprintf("merge task meet error: %v", err))
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+func (m *Merge) getAllTargetPath(ctx context.Context, filePath string) ([]string, error) {
+	sep := "/"
+	pathDir := strings.Split(filePath, sep)
+	l := list.New()
+	if pathDir[0] == "" {
+		l.PushBack(sep)
+	} else {
+		l.PushBack(pathDir[0])
+	}
+
+	for i := 1; i < len(pathDir); i++ {
+		length := l.Len()
+		for j := 0; j < length; j++ {
+			elem := l.Remove(l.Front())
+			prefix := elem.(string)
+			entries, err := m.FS.List(ctx, prefix)
+			if err != nil {
+				return nil, err
+			}
+			for _, entry := range entries {
+				if !entry.IsDir && i+1 != len(pathDir) {
+					continue
+				}
+				if entry.IsDir && i+1 == len(pathDir) {
+					continue
+				}
+				matched, err := path.Match(pathDir[i], entry.Name)
+				if err != nil {
+					return nil, err
+				}
+				if !matched {
+					continue
+				}
+				l.PushBack(path.Join(prefix, entry.Name))
+			}
+		}
+	}
+
+	length := l.Len()
+	fileList := make([]string, 0, length)
+	for idx := 0; idx < length; idx++ {
+		fileList = append(fileList, l.Remove(l.Front()).(string))
+	}
+	return fileList, nil
 }
 
 // doMergeFiles handle merge{read, write, delete} ops
@@ -704,6 +812,39 @@ func newRowCache(tbl *table.Table) Cache {
 	}
 }
 
+func LongRunETLMerge(ctx context.Context, task task.Task, logger *log.MOLogger, opts ...MergeOption) error {
+	// should init once in/with schema-init.
+	tables := table.GetAllTable()
+
+	newOptions := []MergeOption{WithMaxFileSize(maxFileSize.Load())}
+	newOptions = append(newOptions, opts...)
+	merge, err := NewMerge(ctx, newOptions...)
+	if err != nil {
+		return err
+	}
+	merge.Task = task
+
+	trigger := time.NewTicker(time.Duration(mergeCycle.Load()))
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info("receive ctx Done")
+			return ctx.Err()
+		case ts := <-trigger.C:
+			logger.Info("next round", zap.Time("ts", ts))
+
+			// handle today
+			for _, tbl := range tables {
+				merge.Table = tbl
+				if err = merge.ListRange(ctx); err != nil {
+					logger.Error("merge metric failed", zap.Error(err))
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func MergeTaskExecutorFactory(opts ...MergeOption) func(ctx context.Context, task task.Task) error {
 
 	CronMerge := func(ctx context.Context, task task.Task) error {
@@ -718,6 +859,15 @@ func MergeTaskExecutorFactory(opts ...MergeOption) func(ctx context.Context, tas
 		defer logger.Info(fmt.Sprintf("done merge '%s', ID: %d, CreateAt: %d, Metadata.ID: %s", args,
 			task.ID, task.CreateAt, task.Metadata.ID))
 
+		// new branch: task run long time
+		if len(args) == 0 {
+			if err := LongRunETLMerge(ctx, task, logger, opts...); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// old branch
 		elems := strings.Split(string(args), ParamSeparator)
 		id := elems[0]
 		table, exist := table.GetTable(id)
@@ -791,17 +941,9 @@ func CreateCronTask(ctx context.Context, executorID task.TaskCode, taskService t
 	ctx, span := trace.Start(ctx, "ETLMerge.CreateCronTask")
 	defer span.End()
 	logger := runtime.ProcessLevelRuntime().Logger().WithContext(ctx)
-	// should init once in/with schema-init.
-	tables := table.GetAllTable()
-	logger.Info(fmt.Sprintf("init merge task with CronExpr: %s", MergeTaskCronExpr))
-	for _, tbl := range tables {
-		logger.Debug(fmt.Sprintf("init table merge task: %s", tbl.GetIdentify()))
-		if err = taskService.CreateCronTask(ctx, MergeTaskMetadata(executorID, tbl.GetIdentify()), MergeTaskCronExpr); err != nil {
-			return err
-		}
-		if err = taskService.CreateCronTask(ctx, MergeTaskMetadata(executorID, tbl.GetIdentify(), MergeTaskYesterday), MergeTaskCronExprYesterday); err != nil {
-			return err
-		}
+	logger.Info(fmt.Sprintf("init merge task with CronExpr: %s", MergeTaskCronExprEvery05Min))
+	if err = taskService.CreateCronTask(ctx, MergeTaskMetadata(executorID), MergeTaskCronExprEvery05Min); err != nil {
+		return err
 	}
 	return nil
 }
@@ -846,14 +988,15 @@ func InitCronExpr(ctx context.Context, duration time.Duration) error {
 
 var maxFileSize atomic.Int64
 var mergedExtension = table.GetExtension(table.CsvExtension)
+var mergeCycle atomic.Int64
 
 func InitMerge(ctx context.Context, SV *config.ObservabilityParameters) error {
 	var err error
-	mergeCycle := SV.MergeCycle.Duration
+	mergeCycle.Swap(int64(SV.MergeCycle.Duration))
 	filesize := SV.MergeMaxFileSize
 	ext := SV.MergedExtension
-	if mergeCycle > 0 {
-		err = InitCronExpr(ctx, mergeCycle)
+	if mergeCycle.Load() > 0 {
+		err = InitCronExpr(ctx, time.Duration(mergeCycle.Load()))
 		if err != nil {
 			return err
 		}
