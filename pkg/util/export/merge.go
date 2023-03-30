@@ -355,9 +355,6 @@ func (m *Merge) getAllTargetPath(ctx context.Context, filePath string) ([]string
 				if !entry.IsDir && i+1 != len(pathDir) {
 					continue
 				}
-				if entry.IsDir && i+1 == len(pathDir) {
-					continue
-				}
 				matched, err := path.Match(pathDir[i], entry.Name)
 				if err != nil {
 					return nil, err
@@ -815,22 +812,29 @@ func newRowCache(tbl *table.Table) Cache {
 func LongRunETLMerge(ctx context.Context, task task.Task, logger *log.MOLogger, opts ...MergeOption) error {
 	// should init once in/with schema-init.
 	tables := table.GetAllTable()
+	if len(tables) == 0 {
+		logger.Info("empty tables")
+		return nil
+	}
 
 	newOptions := []MergeOption{WithMaxFileSize(maxFileSize.Load())}
 	newOptions = append(newOptions, opts...)
+	newOptions = append(newOptions, WithTable(tables[0]))
 	merge, err := NewMerge(ctx, newOptions...)
 	if err != nil {
 		return err
 	}
 	merge.Task = task
 
-	trigger := time.NewTicker(time.Duration(mergeCycle.Load()))
+	nextD := calculateNextDuration(time.Now(), time.Duration(mergeCycle.Load()))
+	logger.Info("wait next round", zap.Duration("wait", nextD))
+	timer := time.NewTimer(nextD)
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Info("receive ctx Done")
 			return ctx.Err()
-		case ts := <-trigger.C:
+		case ts := <-timer.C:
 			logger.Info("next round", zap.Time("ts", ts))
 
 			// handle today
@@ -840,9 +844,22 @@ func LongRunETLMerge(ctx context.Context, task task.Task, logger *log.MOLogger, 
 					logger.Error("merge metric failed", zap.Error(err))
 				}
 			}
+
+			nextD = calculateNextDuration(time.Now(), time.Duration(mergeCycle.Load()))
+			logger.Info("wait next round", zap.Duration("wait", nextD))
+			timer.Reset(nextD)
 		}
 	}
 	return nil
+}
+
+func calculateNextDuration(now time.Time, cycle time.Duration) time.Duration {
+	if cycle == 0 {
+		return time.Second
+	}
+	nowD := time.Duration(now.Unix()) * time.Second
+	next := (nowD/cycle+1)*cycle - nowD
+	return next
 }
 
 func MergeTaskExecutorFactory(opts ...MergeOption) func(ctx context.Context, task task.Task) error {
@@ -916,6 +933,7 @@ func MergeTaskExecutorFactory(opts ...MergeOption) func(ctx context.Context, tas
 var MergeTaskCronExpr = MergeTaskCronExprEvery4Hour
 
 const MergeTaskCronExprEvery15Sec = "*/15 * * * * *"
+const MergeTaskCronExprEveryMin = "0 * * * * *"
 const MergeTaskCronExprEvery05Min = "0 */5 * * * *"
 const MergeTaskCronExprEvery15Min = "0 */15 * * * *"
 const MergeTaskCronExprEvery1Hour = "0 0 */1 * * *"
@@ -941,8 +959,8 @@ func CreateCronTask(ctx context.Context, executorID task.TaskCode, taskService t
 	ctx, span := trace.Start(ctx, "ETLMerge.CreateCronTask")
 	defer span.End()
 	logger := runtime.ProcessLevelRuntime().Logger().WithContext(ctx)
-	logger.Info(fmt.Sprintf("init merge task with CronExpr: %s", MergeTaskCronExprEvery05Min))
-	if err = taskService.CreateCronTask(ctx, MergeTaskMetadata(executorID), MergeTaskCronExprEvery05Min); err != nil {
+	logger.Info(fmt.Sprintf("init merge task with CronExpr: %s", MergeTaskCronExprEveryMin))
+	if err = taskService.CreateCronTask(ctx, MergeTaskMetadata(executorID), MergeTaskCronExprEveryMin); err != nil {
 		return err
 	}
 	return nil
