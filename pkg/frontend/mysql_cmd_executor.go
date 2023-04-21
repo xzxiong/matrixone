@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"reflect"
 	"sort"
@@ -3572,6 +3573,15 @@ func buildErrorJsonPlan(uuid uuid.UUID, errcode uint16, msg string) []byte {
 	return buffer.Bytes()
 }
 
+func outPutPlan(logicPlan *plan2.Plan) string {
+	var json []byte
+	json, err := logicPlan.Marshal()
+	if err != nil {
+		logutil.Error("outPutPlan failed", logutil.ErrorField(err))
+	}
+	return string(json[:])
+}
+
 func serializePlanToJson(ctx context.Context, queryPlan *plan2.Plan, uuid uuid.UUID) (jsonBytes []byte, statsJonsBytes []byte, stats motrace.Statistic) {
 	if queryPlan != nil && queryPlan.GetQuery() != nil {
 		explainQuery := explain.NewExplainQueryImpl(queryPlan.GetQuery())
@@ -3588,7 +3598,8 @@ func serializePlanToJson(ctx context.Context, queryPlan *plan2.Plan, uuid uuid.U
 		encoder.SetEscapeHTML(false)
 		err := encoder.Encode(marshalPlan)
 		if err != nil {
-			moError := moerr.NewInternalError(ctx, "serialize plan to json error: %s", err.Error())
+			logutil.Error(fmt.Sprintf("encode failed: %v", marshalPlan), zap.String("statement_id", uuid.String()))
+			moError := moerr.NewInternalError(ctx, "serialize plan to json error: %s, statement_id: %s", err.Error(), uuid.String())
 			jsonBytes = buildErrorJsonPlan(uuid, moError.ErrorCode(), moError.Error())
 		} else {
 			jsonBytes = buffer.Bytes()

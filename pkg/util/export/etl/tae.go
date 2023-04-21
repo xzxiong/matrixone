@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
@@ -26,6 +27,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/container/types"
 	"github.com/matrixorigin/matrixone/pkg/container/vector"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/objectio"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/tae/blockio"
@@ -153,6 +155,7 @@ func (w *TAEWriter) writeBatch() error {
 	for rowId, row := range w.rows {
 		err := getOneRowData(w.ctx, batch, row.GetRawColumn(), rowId, w.columnsTypes, w.mp)
 		if err != nil {
+			logutil.Error("failed to getOneRowData", logutil.VarsField(strings.Join(row.ToStrings(), " , ")))
 			return err
 		}
 	}
