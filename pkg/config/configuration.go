@@ -108,10 +108,10 @@ var (
 	defaultBatchProcessor = "FileService"
 
 	// defaultTraceExportInterval default: 15 sec.
-	defaultTraceExportInterval = 15
+	defaultTraceExportInterval = 3
 
 	// defaultMetricExportInterval default: 15 sec.
-	defaultMetricExportInterval = 15
+	defaultMetricExportInterval = 3
 
 	// defaultLogShardID default: 1
 	defaultLogShardID = 1
@@ -124,8 +124,8 @@ var (
 	// defaultMetricUpdateStorageUsageInterval default: 15 min.
 	defaultMetricUpdateStorageUsageInterval = 15 * time.Minute
 
-	// defaultMergeCycle default: 4 hours
-	defaultMergeCycle = 4 * time.Hour
+	// defaultMergeCycle default: 5 minute
+	defaultMergeCycle = 5 * time.Minute
 
 	// defaultMaxFileSize default: 128 MB
 	defaultMaxFileSize = 128
@@ -537,7 +537,7 @@ type ObservabilityParameters struct {
 	// MetricUpdateStorageUsageInterval, default: 30 min
 	MetricUpdateStorageUsageInterval toml.Duration `toml:"metricUpdateStorageUsageInterval"`
 
-	// MergeCycle default: 14400 sec (4 hours).
+	// MergeCycle default: 300 sec (5 minutes).
 	// PS: only used while MO init.
 	MergeCycle toml.Duration `toml:"mergeCycle"`
 
