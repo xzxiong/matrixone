@@ -257,7 +257,7 @@ type Table struct {
 	TableOptions TableOptions
 	// SupportUserAccess default false. if true, user account can access.
 	SupportUserAccess bool
-	// SupportConstAccess default false. if true, use Table.Account
+	// SupportConstAccess default false. if true, use Table.Account first
 	SupportConstAccess bool
 
 	// name2ColumnIdx used in Row
@@ -599,16 +599,18 @@ func (r *Row) Reset() {
 	}
 }
 
-// GetAccount return r.Columns[r.AccountIdx] if r.AccountIdx >= 0 and r.Table.PathBuilder.SupportAccountStrategy,
+// GetAccount
+// return r.Table.Account if r.Table.SupportConstAccess
+// else return r.Columns[r.AccountIdx] if r.AccountIdx >= 0 and r.Table.PathBuilder.SupportAccountStrategy,
 // else return "sys"
 func (r *Row) GetAccount() string {
-	if r.Table.PathBuilder.SupportAccountStrategy() && r.Table.accountIdx >= 0 {
-		return r.Columns[r.Table.accountIdx].String
-	}
 	if r.Table.SupportConstAccess && len(r.Table.Account) > 0 {
 		return r.Table.Account
 	}
-	return "sys"
+	if r.Table.PathBuilder.SupportAccountStrategy() && r.Table.accountIdx >= 0 {
+		return r.Columns[r.Table.accountIdx].String
+	}
+	return AccountSys
 }
 
 func (r *Row) SetVal(col string, cf ColumnField) {

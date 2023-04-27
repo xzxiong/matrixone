@@ -69,7 +69,7 @@ var (
 	resultCntCol = table.Int64Column("result_count", "the number of rows of sql execution results")
 
 	SingleStatementTable = &table.Table{
-		Account:  table.AccountAll,
+		Account:  table.AccountSys,
 		Database: StatsDatabase,
 		Table:    statementInfoTbl,
 		Columns: []table.Column{
@@ -108,6 +108,8 @@ var (
 		AccountColumn: &accountCol,
 		// SupportUserAccess
 		SupportUserAccess: true,
+		// SupportConstAccess
+		SupportConstAccess: true,
 	}
 
 	rawItemCol      = table.StringColumn("raw_item", "raw log item")
@@ -129,7 +131,7 @@ var (
 	resourceCol     = table.JsonColumn("resource", "static resource information")
 
 	SingleRowLogTable = &table.Table{
-		Account:  table.AccountAll,
+		Account:  table.AccountSys,
 		Database: StatsDatabase,
 		Table:    RawLogTbl,
 		Columns: []table.Column{
@@ -162,6 +164,8 @@ var (
 		AccountColumn:    nil,
 		// SupportUserAccess
 		SupportUserAccess: false,
+		// SupportConstAccess
+		SupportConstAccess: true,
 	}
 
 	logView = &table.View{

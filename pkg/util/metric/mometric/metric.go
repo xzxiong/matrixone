@@ -353,7 +353,7 @@ var (
 )
 
 var SingleMetricTable = &table.Table{
-	Account:          table.AccountAll,
+	Account:          table.AccountSys,
 	Database:         MetricDBConst,
 	Table:            `metric`,
 	Columns:          []table.Column{metricNameColumn, metricCollectTimeColumn, metricValueColumn, metricNodeColumn, metricRoleColumn, metricAccountColumn, metricTypeColumn},
@@ -364,6 +364,8 @@ var SingleMetricTable = &table.Table{
 	AccountColumn:    &metricAccountColumn,
 	// SupportUserAccess
 	SupportUserAccess: true,
+	// SupportConstAccess
+	SupportConstAccess: true,
 }
 
 func NewMetricView(tbl string, opts ...table.ViewOption) *table.View {
