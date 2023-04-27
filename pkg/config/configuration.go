@@ -127,8 +127,8 @@ var (
 	// defaultMergeCycle default: 5 minute
 	defaultMergeCycle = 5 * time.Minute
 
-	// defaultMaxFileSize default: 128 MB
-	defaultMaxFileSize = 128
+	// defaultMaxFileSize default: 10 MB
+	defaultMaxFileSize = 10
 
 	// defaultPathBuilder, val in [DBTable, AccountDate]
 	defaultPathBuilder = "AccountDate"
@@ -148,8 +148,8 @@ var (
 	// defaultOBMaxBufferCnt
 	defaultOBBufferCnt int32 = -1
 
-	//defaultOBBufferSize, 10 << 20 = 10485760
-	defaultOBBufferSize int64 = 10485760
+	//defaultOBBufferSize, 3 << 20 = 3145728
+	defaultOBBufferSize int64 = 3145728
 
 	// defaultPrintDebugInterval default: 30 minutes
 	defaultPrintDebugInterval = 30
