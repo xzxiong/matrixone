@@ -108,6 +108,8 @@ var (
 		AccountColumn: &accountCol,
 		// SupportUserAccess
 		SupportUserAccess: true,
+		// SupportConstAccess
+		SupportConstAccess: true,
 	}
 
 	rawItemCol      = table.StringColumn("raw_item", "raw log item")
@@ -162,6 +164,8 @@ var (
 		AccountColumn:    nil,
 		// SupportUserAccess
 		SupportUserAccess: false,
+		// SupportConstAccess
+		SupportConstAccess: true,
 	}
 
 	logView = &table.View{

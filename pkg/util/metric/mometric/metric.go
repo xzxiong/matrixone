@@ -353,6 +353,8 @@ var SingleMetricTable = &table.Table{
 	AccountColumn:    &metricAccountColumn,
 	// SupportUserAccess
 	SupportUserAccess: true,
+	// SupportConstAccess
+	SupportConstAccess: true,
 }
 
 func NewMetricView(tbl string, opts ...table.ViewOption) *table.View {
