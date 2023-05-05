@@ -5,6 +5,7 @@ data-dir = "./mo-data"
 level = "info"
 format = "console"
 max-size = 512
+disable-log = true
 
 [hakeeper-client]
 service-addresses = [
