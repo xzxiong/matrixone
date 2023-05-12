@@ -54,11 +54,15 @@ type collectorOpts struct {
 }
 
 func defaultCollectorOpts() collectorOpts {
+	var num = int(float64(runtime.NumCPU()) * 0.1)
+	if num < 1 {
+		num = 1
+	}
 	return collectorOpts{
 		metricThreshold: 1000,
 		sampleThreshold: 4096,
 		flushInterval:   15 * time.Second,
-		sqlWorkerNum:    runtime.NumCPU(),
+		sqlWorkerNum:    num,
 	}
 }
 
