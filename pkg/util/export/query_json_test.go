@@ -58,7 +58,7 @@ func (b *BenchmarkJsonQueryPathBuilder) BuildETLPath(db, name, account string) s
 }
 
 var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, float64")
-var dummyStatsStrColumn = table.JsonColumn("stats_str", "json-str fill with key: int64, float64")
+var dummyStatsStrColumn = table.TextColumn("stats_str", "json-str fill with key: int64, float64")
 
 var dummyJsonTable = &table.Table{
 	Account:            "sys",
@@ -85,11 +85,13 @@ func (i *dummyJsonItem) FillRow(row *table.Row) {
 	row.SetColumnVal(dummyInt64Column, table.Int64Field(i.i))
 	row.SetColumnVal(dummyFloat64Column, table.Float64Field(i.f))
 	m := make(map[string]any)
+	s := ` {"statistics": {"IO": [{"name": "Disk IO", "unit": "byte", "value": 0}, {"name": "S3 IO Byte", "unit": "byte", "value": 224}, {"name": "S3 IO Input Count", "unit": "count", "value": 0}, {"name": "S3 IO Output Count", "unit": "count", "value": 0}], "Memory": [{"name": "Memory Size", "unit": "byte", "value": 225}], "Network": [{"name": "Network", "unit": "byte", "value": 0}], "Throughput": [{"name": "Input Rows", "unit": "count", "value": 1}, {"name": "Output Rows", "unit": "count", "value": 0}, {"name": "Input Size", "unit": "byte", "value": 224}, {"name": "Output Size", "unit": "byte", "value": 0}], "Time": [{"name": "Time Consumed", "unit": "ns", "value": 39833}, {"name": "Wait Time", "unit": "ns", "value": 280250}]}, "totalStats": {"name": "Time spent", "unit": "ns", "value": 39833}}`
+	json.MustUnmarshal([]byte(s), &m)
 	m["int64"] = i.i
 	m["float64"] = i.f
 	jsonStr := json.MustMarshal(&m)
-	row.SetColumnVal(dummyStatsColumn, table.JsonField(string(jsonStr)))
-	row.SetColumnVal(dummyStatsStrColumn, table.JsonField(string(jsonStr)))
+	row.SetColumnVal(dummyStatsColumn, table.StringField(string(jsonStr)))
+	row.SetColumnVal(dummyStatsStrColumn, table.StringField(string(jsonStr)))
 }
 
 func (i *dummyJsonItem) CsvField(row *table.Row) []string {
@@ -606,6 +608,10 @@ func BenchmarkQueryTae10wRows(b *testing.B) {
 			name: "queryJsonInt64ByInt64",
 			args: args{action: queryJsonInt64ByInt64},
 		},
+		{
+			name: "queryJsonStrInt64",
+			args: args{action: queryJsonStrInt64},
+		},
 	}
 
 	ctx := context.TODO()
@@ -671,6 +677,10 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 		{
 			name: "queryJsonInt64ByInt64",
 			args: args{action: queryJsonInt64ByInt64},
+		},
+		{
+			name: "queryJsonStrInt64",
+			args: args{action: queryJsonStrInt64},
 		},
 	}
 
