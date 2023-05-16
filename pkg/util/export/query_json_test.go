@@ -58,12 +58,13 @@ func (b *BenchmarkJsonQueryPathBuilder) BuildETLPath(db, name, account string) s
 }
 
 var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, float64")
+var dummyStatsStrColumn = table.JsonColumn("stats_str", "json-str fill with key: int64, float64")
 
 var dummyJsonTable = &table.Table{
 	Account:            "sys",
 	Database:           "test",
 	Table:              "dummy_json",
-	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn},
+	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn, dummyStatsStrColumn},
 	PrimaryKeyColumn:   nil,
 	Engine:             table.ExternalTableEngine,
 	Comment:            "",
@@ -81,12 +82,14 @@ type dummyJsonItem struct {
 
 func (i *dummyJsonItem) FillRow(row *table.Row) {
 	row.Reset()
-	row.SetColumnVal(dummyInt64Column, i.i)
-	row.SetColumnVal(dummyFloat64Column, i.f)
+	row.SetColumnVal(dummyInt64Column, table.Int64Field(i.i))
+	row.SetColumnVal(dummyFloat64Column, table.Float64Field(i.f))
 	m := make(map[string]any)
 	m["int64"] = i.i
 	m["float64"] = i.f
-	row.SetColumnVal(dummyStatsColumn, string(json.MustMarshal(&m)))
+	jsonStr := json.MustMarshal(&m)
+	row.SetColumnVal(dummyStatsColumn, table.JsonField(string(jsonStr)))
+	row.SetColumnVal(dummyStatsStrColumn, table.JsonField(string(jsonStr)))
 }
 
 func (i *dummyJsonItem) CsvField(row *table.Row) []string {
@@ -234,7 +237,7 @@ func readTae(b *testing.B, filename string) {
 		for _, vec := range bat.Vecs {
 			rows, err := etl.GetVectorArrayLen(context.TODO(), vec)
 			require.Nil(b, err)
-			b.Logf("calculate length: %d, vec.Length: %d, type: %s", rows, vec.Length(), vec.Typ.String())
+			b.Logf("calculate length: %d, vec.Length: %d, type: %s", rows, vec.Length(), vec.GetType().String())
 		}
 		rows := bat.Vecs[0].Length()
 		ctn := strings.Builder{}
@@ -443,6 +446,23 @@ func queryJsonFloat64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	}
 	return count, nil
 }
+func queryJsonStrInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
+	var val int64
+	const sql = `select JSON_UNQUOTE(json_extract(stats_str, '$.int64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats_str, '$.int64'))  = ?;`
+	count := 0
+	rows, err := db.QueryContext(ctx, sql, i)
+	if err != nil {
+		return count, err
+	}
+	for rows.Next() {
+		rows.Scan(&val)
+		if val != int64(i) {
+			return 0, moerr.NewInternalError(ctx, "read error: %v", err)
+		}
+		count++
+	}
+	return count, nil
+}
 
 func BenchmarkQuery10wRows(b *testing.B) {
 	syncBenchmarkLock.Lock()
@@ -470,6 +490,10 @@ func BenchmarkQuery10wRows(b *testing.B) {
 		{
 			name: "queryJsonFloat64",
 			args: args{action: queryJsonFloat64},
+		},
+		{
+			name: "queryJsonStrInt64",
+			args: args{action: queryJsonStrInt64},
 		},
 	}
 
