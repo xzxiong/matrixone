@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,12 +60,14 @@ func (b *BenchmarkJsonQueryPathBuilder) BuildETLPath(db, name, account string) s
 
 var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, float64")
 var dummyStatsStrColumn = table.TextColumn("stats_str", "json-str fill with key: int64, float64")
+var dummyStatsArrColumn = table.TextColumn("stats_arr", "json-str int64 array")
+var dummyStatsArr16Column = table.TextColumn("stats_arr_16", "json-str int64 array with 16 elems")
 
 var dummyJsonTable = &table.Table{
 	Account:            "sys",
 	Database:           "test",
 	Table:              "dummy_json",
-	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn, dummyStatsStrColumn},
+	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn, dummyStatsStrColumn, dummyStatsArrColumn, dummyStatsArr16Column},
 	PrimaryKeyColumn:   nil,
 	Engine:             table.ExternalTableEngine,
 	Comment:            "",
@@ -92,6 +95,15 @@ func (i *dummyJsonItem) FillRow(row *table.Row) {
 	jsonStr := json.MustMarshal(&m)
 	row.SetColumnVal(dummyStatsColumn, table.StringField(string(jsonStr)))
 	row.SetColumnVal(dummyStatsStrColumn, table.StringField(string(jsonStr)))
+	arr := fmt.Sprintf("[1, %[1]d, %[1]d, %[1]d, %[1]d]", i.i)
+	row.SetColumnVal(dummyStatsArrColumn, table.StringField(arr))
+	// [16] array
+	slice := [16]int64{}
+	for i := 0; i < 16; i++ {
+		slice[i] = rand.Int63()
+	}
+	slice[0], slice[1] = 1, i.i
+	row.SetColumnVal(dummyStatsArr16Column, table.StringField(string(json.MustMarshal(&slice))))
 }
 
 func (i *dummyJsonItem) CsvField(row *table.Row) []string {
@@ -465,6 +477,40 @@ func queryJsonStrInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	}
 	return count, nil
 }
+func queryJsonArrInt64(ctx context.Context, db *sql.DB, i int) (int, error) {
+	var val int64
+	const sql = `select JSON_UNQUOTE(json_extract(stats_arr, '$[1]'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats_arr, '$[1]'))  = ?;`
+	count := 0
+	rows, err := db.QueryContext(ctx, sql, i)
+	if err != nil {
+		return count, err
+	}
+	for rows.Next() {
+		rows.Scan(&val)
+		if val != int64(i) {
+			return 0, moerr.NewInternalError(ctx, "read error: %v", err)
+		}
+		count++
+	}
+	return count, nil
+}
+func queryJsonArr16Int64(ctx context.Context, db *sql.DB, i int) (int, error) {
+	var val int64
+	const sql = `select JSON_UNQUOTE(json_extract(stats_arr_16, '$[1]'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats_arr_16, '$[1]'))  = ?;`
+	count := 0
+	rows, err := db.QueryContext(ctx, sql, i)
+	if err != nil {
+		return count, err
+	}
+	for rows.Next() {
+		rows.Scan(&val)
+		if val != int64(i) {
+			return 0, moerr.NewInternalError(ctx, "read error: %v", err)
+		}
+		count++
+	}
+	return count, nil
+}
 
 func BenchmarkQuery10wRows(b *testing.B) {
 	syncBenchmarkLock.Lock()
@@ -612,6 +658,14 @@ func BenchmarkQueryTae10wRows(b *testing.B) {
 			name: "queryJsonStrInt64",
 			args: args{action: queryJsonStrInt64},
 		},
+		{
+			name: "queryJsonArrInt64",
+			args: args{action: queryJsonArrInt64},
+		},
+		{
+			name: "queryJsonArr16Int64",
+			args: args{action: queryJsonArr16Int64},
+		},
 	}
 
 	ctx := context.TODO()
@@ -681,6 +735,14 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 		{
 			name: "queryJsonStrInt64",
 			args: args{action: queryJsonStrInt64},
+		},
+		{
+			name: "queryJsonArrInt64",
+			args: args{action: queryJsonArrInt64},
+		},
+		{
+			name: "queryJsonArr16Int64",
+			args: args{action: queryJsonArr16Int64},
 		},
 	}
 
