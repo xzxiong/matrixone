@@ -62,12 +62,13 @@ var dummyStatsColumn = table.JsonColumn("stats", "json fill with key: int64, flo
 var dummyStatsStrColumn = table.TextColumn("stats_str", "json-str fill with key: int64, float64")
 var dummyStatsArrColumn = table.TextColumn("stats_arr", "json-str int64 array")
 var dummyStatsArr16Column = table.TextColumn("stats_arr_16", "json-str int64 array with 16 elems")
+var dummyStatsShortColumn = table.TextColumn("stats_str_short", "json-str int64 array, with short key")
 
 var dummyJsonTable = &table.Table{
 	Account:            "sys",
 	Database:           "test",
 	Table:              "dummy_json",
-	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn, dummyStatsStrColumn, dummyStatsArrColumn, dummyStatsArr16Column},
+	Columns:            []table.Column{dummyInt64Column, dummyFloat64Column, dummyStatsColumn, dummyStatsStrColumn, dummyStatsArrColumn, dummyStatsArr16Column, dummyStatsShortColumn},
 	PrimaryKeyColumn:   nil,
 	Engine:             table.ExternalTableEngine,
 	Comment:            "",
@@ -95,15 +96,25 @@ func (i *dummyJsonItem) FillRow(row *table.Row) {
 	jsonStr := json.MustMarshal(&m)
 	row.SetColumnVal(dummyStatsColumn, table.StringField(string(jsonStr)))
 	row.SetColumnVal(dummyStatsStrColumn, table.StringField(string(jsonStr)))
-	arr := fmt.Sprintf("[1, %[1]d, %[1]d, %[1]d, %[1]d]", i.i)
-	row.SetColumnVal(dummyStatsArrColumn, table.StringField(arr))
 	// [16] array
 	slice := [16]int64{}
 	for i := 0; i < 16; i++ {
 		slice[i] = rand.Int63()
 	}
+	// format [5]arr
+	arr := fmt.Sprintf("[1, %d, %d, %d, %d]", i.i, slice[2], slice[3], slice[4])
+	row.SetColumnVal(dummyStatsArrColumn, table.StringField(arr))
+	// format [16]arr
 	slice[0], slice[1] = 1, i.i
 	row.SetColumnVal(dummyStatsArr16Column, table.StringField(string(json.MustMarshal(&slice))))
+	// json like: `{"int64":?, "cpu":1, "mem":2, "s3in": 123, "s3out":123}`
+	shortM := make(map[string]int64)
+	shortM["int64"] = i.i
+	shortM["cpu"] = slice[2]
+	shortM["mem"] = slice[3]
+	shortM["s3in"] = 0
+	shortM["s3out"] = 0
+	row.SetColumnVal(dummyStatsShortColumn, table.StringField(string(json.MustMarshal(&shortM))))
 }
 
 func (i *dummyJsonItem) CsvField(row *table.Row) []string {
@@ -511,6 +522,23 @@ func queryJsonArr16Int64(ctx context.Context, db *sql.DB, i int) (int, error) {
 	}
 	return count, nil
 }
+func queryJsonStrShortKey(ctx context.Context, db *sql.DB, i int) (int, error) {
+	var val int64
+	const sql = `select JSON_UNQUOTE(json_extract(stats_str_short, '$.int64'))  from test.dummy_json where JSON_UNQUOTE(json_extract(stats_str_short, '$.int64'))  = ?;`
+	count := 0
+	rows, err := db.QueryContext(ctx, sql, i)
+	if err != nil {
+		return count, err
+	}
+	for rows.Next() {
+		rows.Scan(&val)
+		if val != int64(i) {
+			return 0, moerr.NewInternalError(ctx, "read error: %v", err)
+		}
+		count++
+	}
+	return count, nil
+}
 
 func BenchmarkQuery10wRows(b *testing.B) {
 	syncBenchmarkLock.Lock()
@@ -666,6 +694,10 @@ func BenchmarkQueryTae10wRows(b *testing.B) {
 			name: "queryJsonArr16Int64",
 			args: args{action: queryJsonArr16Int64},
 		},
+		{
+			name: "queryJsonStrShortKey",
+			args: args{action: queryJsonStrShortKey},
+		},
 	}
 
 	ctx := context.TODO()
@@ -743,6 +775,10 @@ func BenchmarkQueryTae1kRows(b *testing.B) {
 		{
 			name: "queryJsonArr16Int64",
 			args: args{action: queryJsonArr16Int64},
+		},
+		{
+			name: "queryJsonStrShortKey",
+			args: args{action: queryJsonStrShortKey},
 		},
 	}
 
