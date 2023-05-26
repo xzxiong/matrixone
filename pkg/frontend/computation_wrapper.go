@@ -417,6 +417,7 @@ func (cwft *TxnComputationWrapper) RecordExecPlan(ctx context.Context) error {
 			if execPlanCnt >= MaxCount {
 				if w != nil {
 					w.Flush()
+					f.Close()
 					w = nil
 				}
 			} else {
