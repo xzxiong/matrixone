@@ -417,17 +417,19 @@ func (cwft *TxnComputationWrapper) RecordExecPlan(ctx context.Context) error {
 			if execPlanCnt >= MaxCount {
 				if w != nil {
 					w.Flush()
+					w = nil
 				}
-			}
-			if data, err := cwft.plan.Marshal(); err != nil {
-				panic(err)
 			} else {
-				w.Write(buf.Int2Bytes(len(data)))
-				if _, err = w.Write(data); err != nil {
+				if data, err := cwft.plan.Marshal(); err != nil {
 					panic(err)
+				} else {
+					w.Write(buf.Int2Bytes(len(data)))
+					if _, err = w.Write(data); err != nil {
+						panic(err)
+					}
 				}
+				execPlanCnt++
 			}
-			execPlanCnt++
 		}
 		stm.SetExecPlan(cwft.plan, SerializeExecPlan)
 	}
