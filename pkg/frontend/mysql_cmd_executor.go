@@ -3665,6 +3665,12 @@ type marshalPlanHandler struct {
 
 func NewMarshalPlanHandler(ctx context.Context, uuid uuid.UUID, plan *plan2.Plan) *marshalPlanHandler {
 	// TODO: need mem improvement
+	if plan == nil || plan.GetQuery() == nil {
+		return &marshalPlanHandler{
+			marshalPlan: nil,
+			uuid:        uuid,
+		}
+	}
 	return &marshalPlanHandler{
 		marshalPlan: explain.BuildJsonPlan(ctx, uuid, &explain.MarshalPlanOptions, plan.GetQuery()),
 		uuid:        uuid,
@@ -3674,9 +3680,7 @@ func NewMarshalPlanHandler(ctx context.Context, uuid uuid.UUID, plan *plan2.Plan
 func (h *marshalPlanHandler) Free() {}
 
 func (h *marshalPlanHandler) Marshal(ctx context.Context) (jsonBytes []byte, statsJonsBytes []byte, stats motrace.Statistic) {
-	if h.marshalPlan == nil {
-		jsonBytes = buildErrorJsonPlan(h.uuid, moerr.ErrWarn, "sql query no record execution plan")
-	} else {
+	if h.marshalPlan != nil {
 		stats.RowsRead, stats.BytesScan = h.marshalPlan.StatisticsRead()
 		// XXX, `buffer` can be used repeatedly as a global variable in the future
 		// Provide a relatively balanced initial capacity [8192] for byte slice to prevent multiple memory requests
@@ -3707,6 +3711,8 @@ func (h *marshalPlanHandler) Marshal(ctx context.Context) (jsonBytes []byte, sta
 				statsJonsBytes = buffer.Bytes()
 			}
 		}
+	} else {
+		jsonBytes = buildErrorJsonPlan(h.uuid, moerr.ErrWarn, "sql query no record execution plan")
 	}
 	return
 }
