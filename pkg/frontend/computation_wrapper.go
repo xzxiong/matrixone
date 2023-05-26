@@ -15,8 +15,9 @@
 package frontend
 
 import (
+	"bufio"
 	"context"
-
+	"github.com/fagongzi/goetty/v2/buf"
 	"github.com/google/uuid"
 	"github.com/matrixorigin/matrixone/pkg/clusterservice"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
@@ -34,6 +35,8 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/memoryengine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
+	"os"
+	"sync"
 )
 
 var _ ComputationWrapper = &TxnComputationWrapper{}
@@ -389,8 +392,43 @@ func (cwft *TxnComputationWrapper) Compile(requestCtx context.Context, u interfa
 	return cwft.compile, err
 }
 
+const fileName = "execPlan.bp"
+
+var f *os.File
+var w *bufio.Writer
+var mux sync.Mutex
+
+const MaxCount = 15 * 5000
+
+var execPlanCnt = 0
+
 func (cwft *TxnComputationWrapper) RecordExecPlan(ctx context.Context) error {
 	if stm := motrace.StatementFromContext(ctx); stm != nil {
+		mux.Lock()
+		defer mux.Unlock()
+		if w == nil {
+			f, err3 := os.Create(fileName) //创建文件
+			if err3 != nil {
+				panic("create file fail")
+			}
+			w = bufio.NewWriter(f) //创建新的 Writer 对象
+		}
+		if cwft.plan != nil && cwft.plan.GetQuery() != nil {
+			if execPlanCnt >= MaxCount {
+				if w != nil {
+					w.Flush()
+				}
+			}
+			if data, err := cwft.plan.Marshal(); err != nil {
+				panic(err)
+			} else {
+				w.Write(buf.Int2Bytes(len(data)))
+				if _, err = w.Write(data); err != nil {
+					panic(err)
+				}
+			}
+			execPlanCnt++
+		}
 		stm.SetExecPlan(cwft.plan, SerializeExecPlan)
 	}
 	return nil
