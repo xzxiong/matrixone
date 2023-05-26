@@ -26,6 +26,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/container/batch"
 	"github.com/matrixorigin/matrixone/pkg/container/types"
 	"github.com/matrixorigin/matrixone/pkg/defines"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/pb/metadata"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec"
 	"github.com/matrixorigin/matrixone/pkg/sql/compile"
@@ -403,13 +404,15 @@ const MaxCount = 15 * 5000
 var execPlanCnt = 0
 
 func (cwft *TxnComputationWrapper) RecordExecPlan(ctx context.Context) error {
+	var err error
 	if stm := motrace.StatementFromContext(ctx); stm != nil {
 		mux.Lock()
 		defer mux.Unlock()
-		if w == nil {
-			f, err3 := os.Create(fileName) //创建文件
-			if err3 != nil {
-				panic("create file fail")
+		if w == nil && execPlanCnt < MaxCount {
+			f, err = os.Create(fileName) //创建文件
+			if err != nil {
+				logutil.Errorf("create file fail: %s", err)
+				return err
 			}
 			w = bufio.NewWriter(f) //创建新的 Writer 对象
 		}
@@ -422,11 +425,13 @@ func (cwft *TxnComputationWrapper) RecordExecPlan(ctx context.Context) error {
 				}
 			} else {
 				if data, err := cwft.plan.Marshal(); err != nil {
-					panic(err)
+					logutil.Errorf("Marshal fail: %s", err)
+					return err
 				} else {
 					w.Write(buf.Int2Bytes(len(data)))
 					if _, err = w.Write(data); err != nil {
-						panic(err)
+						logutil.Errorf("Write fail: %s", err)
+						return err
 					}
 				}
 				execPlanCnt++
