@@ -247,6 +247,7 @@ type Table struct {
 	Table            string
 	Columns          []Column
 	PrimaryKeyColumn []Column
+	ClusterBy        []Column
 	Engine           string
 	Comment          string
 	// PathBuilder help to desc param 'infile'
@@ -335,6 +336,17 @@ func (tbl *Table) ToCreateSql(ctx context.Context, ifNotExists bool) string {
 		sb.WriteString(`)`)
 	}
 	sb.WriteString("\n)")
+	// cluster by
+	if len(tbl.ClusterBy) > 0 && tbl.Engine != ExternalTableEngine {
+		sb.WriteString(" cluster by (")
+		for idx, col := range tbl.ClusterBy {
+			if idx > 0 {
+				sb.WriteString(`, `)
+			}
+			sb.WriteString(fmt.Sprintf("`%s`", col.Name))
+		}
+		sb.WriteString(`)`)
+	}
 	sb.WriteString(TableOptions.GetTableOptions(tbl.PathBuilder))
 
 	return sb.String()

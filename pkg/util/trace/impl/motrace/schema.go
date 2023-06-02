@@ -101,7 +101,9 @@ var (
 			sqlTypeCol,
 			resultCntCol,
 		},
-		//PrimaryKeyColumn: []table.Column{stmtIDCol},
+		PrimaryKeyColumn: nil,
+		ClusterBy:        []table.Column{reqAtCol, accountCol},
+		// Engine
 		Engine:        table.NormalTableEngine,
 		Comment:       "record each statement and stats info",
 		PathBuilder:   table.NewAccountDatePathBuilder(),
@@ -158,6 +160,7 @@ var (
 			spanKindCol,
 		},
 		PrimaryKeyColumn: nil,
+		ClusterBy:        []table.Column{timestampCol, rawItemCol},
 		Engine:           table.NormalTableEngine,
 		Comment:          "read merge data from log, error, span",
 		PathBuilder:      table.NewAccountDatePathBuilder(),
