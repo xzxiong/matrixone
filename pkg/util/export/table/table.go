@@ -643,7 +643,8 @@ func (r *Row) ToStrings() []string {
 			types.T_binary, types.T_varbinary, types.T_blob, types.T_text:
 			switch r.Columns[idx].Type {
 			case TBytes:
-				col[idx] = r.Columns[idx].EncodeBytes()
+				// hack way for json column, avoid early copy. pls see more in BytesTIPs
+				col[idx] = string(r.Columns[idx].Bytes)
 			case TUuid:
 				dst := r.Columns[idx].EncodeUuid()
 				col[idx] = string(dst[:])
@@ -662,7 +663,7 @@ func (r *Row) ToStrings() []string {
 				}
 				col[idx] = val
 			case TBytes:
-				// hack way for json column, avoid early copy.
+				// BytesTIPs: hack way for json column, avoid early copy.
 				// Data-safety depends on Writer call Row.ToStrings() before IBuffer2SqlItem.Free()
 				// important:
 				// StatementInfo's execPlanCol / statsCol, this two column will be free by StatementInfo.Free()
