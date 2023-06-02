@@ -661,6 +661,12 @@ func (r *Row) ToStrings() []string {
 					val = typ.Default
 				}
 				col[idx] = val
+			case TBytes:
+				// hack way for json column, avoid early copy.
+				// Data-safety depends on Writer call Row.ToStrings() before IBuffer2SqlItem.Free()
+				// important:
+				// StatementInfo's execPlanCol / statsCol, this two column will be free by StatementInfo.Free()
+				col[idx] = string(r.Columns[idx].Bytes)
 			}
 		case types.T_datetime:
 			col[idx] = Time2DatetimeString(r.Columns[idx].GetTime())
