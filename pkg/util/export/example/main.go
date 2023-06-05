@@ -123,6 +123,9 @@ func mergeAll(ctx context.Context, fs *fileservice.LocalETLFS) {
 	ctx, span := trace.Start(ctx, "mergeTable")
 	defer span.End()
 	merge, err := export.NewMerge(ctx, export.WithTable(motrace.SingleStatementTable), export.WithFileService(fs))
+	if err != nil {
+		logutil.Infof("[%v] failed to NewMerge: %v", "All", err)
+	}
 	err = merge.ListRange(ctx)
 	if err != nil {
 		logutil.Infof("[%v] failed to merge: %v", "All", err)
