@@ -401,17 +401,16 @@ func (m *Merge) doMergeFiles(ctx context.Context, account string, files []*FileM
 	var uploadFile = func(ctx context.Context, fp *FileMeta) error {
 		row := m.Table.GetRow(ctx)
 		defer row.Free()
-		cacheFileData := &SliceCache{}
-		defer cacheFileData.Reset()
 		// open reader
 		reader, err := newETLReader(ctx, m.Table, m.FS, fp.FilePath, fp.FileSize, m.mp)
-		if reader != nil {
-			defer reader.Close()
-		}
 		if err != nil {
 			m.logger.Error(fmt.Sprintf("merge file meet read failed: %v", err))
 			return err
 		}
+		defer reader.Close()
+
+		cacheFileData := &SliceCache{}
+		defer cacheFileData.Reset()
 
 		// read all content
 		var line []string
@@ -449,9 +448,10 @@ func (m *Merge) doMergeFiles(ctx context.Context, account string, files []*FileM
 		}
 		return nil
 	}
+	var err error
 
 	for _, fp := range files {
-		if err := uploadFile(ctx, fp); err != nil {
+		if err = uploadFile(ctx, fp); err != nil {
 			// todo: adjust the sleep settings
 			// Sleep 10 seconds to wait for the database to recover
 			time.Sleep(10 * time.Second)
@@ -464,7 +464,7 @@ func (m *Merge) doMergeFiles(ctx context.Context, account string, files []*FileM
 	}
 	logutil.Debug("upload files success", logutil.TableField(m.Table.GetIdentify()), zap.Int("file count", len(files)))
 
-	return nil
+	return err
 }
 
 func SubStringPrefixLimit(str string, length int) string {
