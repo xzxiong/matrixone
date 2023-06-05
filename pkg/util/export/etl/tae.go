@@ -249,7 +249,7 @@ func getOneRowData(ctx context.Context, bat *batch.Batch, Line []table.ColumnFie
 				if len(val) == 0 {
 					val = util.UnsafeStringToBytes(field.String)
 				}
-				err := vector.SetBytesAt(vec, rowIdx, field.Bytes, mp)
+				err := vector.SetBytesAt(vec, rowIdx, val, mp)
 				if err != nil {
 					return err
 				}
