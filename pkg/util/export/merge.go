@@ -405,7 +405,9 @@ func (m *Merge) doMergeFiles(ctx context.Context, account string, files []*FileM
 		defer cacheFileData.Reset()
 		// open reader
 		reader, err := newETLReader(ctx, m.Table, m.FS, fp.FilePath, fp.FileSize, m.mp)
-		defer reader.Close()
+		if reader != nil {
+			defer reader.Close()
+		}
 		if err != nil {
 			m.logger.Error(fmt.Sprintf("merge file meet read failed: %v", err))
 			return err

@@ -161,6 +161,15 @@ func TextColumn(name, comment string) Column {
 	}
 }
 
+func TextDefaultColumn(name, defaultVal, comment string) Column {
+	return Column{
+		Name:    name,
+		ColType: TText,
+		Default: defaultVal,
+		Comment: comment,
+	}
+}
+
 func DatetimeColumn(name, comment string) Column {
 	return Column{
 		Name:    name,
