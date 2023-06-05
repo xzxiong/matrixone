@@ -1,0 +1,37 @@
+create table t (i int);
+desc t;
+Field    Type    Null    Key    Default    Extra    Comment
+i    INT    YES        NULL
+select last_query_id();
+last_query_id()
+1
+drop database if exists test_db;
+begin;
+create database test_db;
+use test_db;
+create table test_table(
+col1 int,
+col2 varchar
+);
+desc test_table;
+Field    Type    Null    Key    Default    Extra    Comment
+col1    INT    YES        NULL
+col2    VARCHAR(65535)    YES        NULL
+select last_query_id();
+last_query_id()
+1
+/* cloud_user */ desc test_table;
+Field    Type    Null    Key    Default    Extra    Comment
+col1    INT    YES        NULL
+col2    VARCHAR(65535)    YES        NULL
+select last_query_id();
+last_query_id()
+1
+/* cloud_nouser */ desc test_table;
+Field    Type    Null    Key    Default    Extra    Comment
+col1    INT    YES        NULL
+col2    VARCHAR(65535)    YES        NULL
+select last_query_id();
+last_query_id()
+1
+commit;
