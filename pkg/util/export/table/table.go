@@ -675,7 +675,11 @@ func (r *Row) ToStrings() []string {
 				dst := r.Columns[idx].EncodeUuid()
 				col[idx] = string(dst[:])
 			default:
-				col[idx] = r.Columns[idx].String // default val can see Row.Reset
+				val := r.Columns[idx].String
+				if len(val) == 0 {
+					val = typ.Default
+				}
+				col[idx] = val
 			}
 		case types.T_json:
 			switch r.Columns[idx].Type {
