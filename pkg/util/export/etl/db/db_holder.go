@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/go-sql-driver/mysql"
+	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -173,12 +174,15 @@ func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration
 }
 
 func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][]string, tbl *table.Table, maxLen int) {
+	ctx, span := trace.Start(ctx, "bulkInsert")
+	sc := span.SpanContext()
+	defer span.End()
 	if len(records) == 0 {
 		done <- nil
 		return
 	}
 
-	baseStr := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES ", tbl.Database, tbl.Table)
+	baseStr := fmt.Sprintf("/*%s*/INSERT INTO `%s`.`%s` VALUES ", sc.TraceID.String(), tbl.Database, tbl.Table)
 
 	sb := strings.Builder{}
 	defer sb.Reset()
@@ -214,7 +218,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 			if err != nil {
 				tx.Rollback()
 				sb.Reset()
-				logutil.Error("sqlWriter exec failed", logutil.ErrorField(err))
+				logutil.Error("sqlWriter exec failed", logutil.ErrorField(err), trace.ContextField(ctx))
 				done <- err
 				return
 			}
@@ -232,7 +236,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		logutil.Error("sqlWriter commit failed", logutil.ErrorField(err))
+		logutil.Error("sqlWriter commit failed", logutil.ErrorField(err), trace.ContextField(ctx))
 		done <- err
 		return
 	}
