@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"io"
 	"sort"
 	"strconv"
@@ -207,14 +208,21 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	var stmID uuid.UUID
 	var statement tree.Statement = nil
 	var text string
+	tenant := ses.GetTenantInfo()
+	if tenant == nil {
+		tenant, _ = GetTenantInfo(ctx, "internal")
+	}
+	sqlLength := ses.GetParameterUnit().SV.LengthOfQueryPrinted
+	if tenant.GetUser() == db_holder.MOLoggerUser {
+		sqlLength = 128
+	}
+	text = SubStringFromBegin(envStmt, int(sqlLength))
 	if cw != nil {
 		copy(stmID[:], cw.GetUUID())
 		statement = cw.GetAst()
 		ses.ast = statement
-		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 	} else {
 		stmID = uuid.New()
-		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 	}
 	if sqlType != internalSql {
 		ses.pushQueryId(types.Uuid(stmID).ToString())
@@ -222,10 +230,6 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 
 	if !motrace.GetTracerProvider().IsEnable() {
 		return ctx
-	}
-	tenant := ses.GetTenantInfo()
-	if tenant == nil {
-		tenant, _ = GetTenantInfo(ctx, "internal")
 	}
 	stm := motrace.NewStatementInfo()
 	// set TransactionID
