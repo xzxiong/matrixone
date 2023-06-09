@@ -23,6 +23,7 @@ package motrace
 
 import (
 	"context"
+	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"sync/atomic"
 	"time"
 
@@ -105,6 +106,8 @@ func Init(ctx context.Context, opts ...TracerProviderOption) error {
 	logutil.Debugf("trace with LongQueryTime: %v", time.Duration(GetTracerProvider().longQueryTime))
 	logutil.Debugf("trace with LongSpanTime: %v", GetTracerProvider().longSpanTime)
 	logutil.Debugf("trace with DisableSpan: %v", GetTracerProvider().disableSpan)
+
+	db_holder.InitLogger()
 
 	return nil
 }

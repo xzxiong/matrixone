@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -213,6 +214,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 			if err != nil {
 				tx.Rollback()
 				sb.Reset()
+				logutil.Error("sqlWriter exec failed", logutil.ErrorField(err))
 				done <- err
 				return
 			}
@@ -235,4 +237,22 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 		return
 	}
 	done <- nil
+}
+
+func InitLogger() {
+	mysql.SetLogger(NewMysqlLogger(logutil.GetGlobalLogger()))
+}
+
+type MysqlLogger struct {
+	*zap.SugaredLogger
+}
+
+func NewMysqlLogger(logger *zap.Logger) *MysqlLogger {
+	return &MysqlLogger{
+		SugaredLogger: logger.Named("mysql").Sugar(),
+	}
+}
+
+func (m *MysqlLogger) Print(v ...interface{}) {
+	m.Error(v...)
 }
