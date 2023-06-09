@@ -73,27 +73,27 @@ var (
 		Database: StatsDatabase,
 		Table:    statementInfoTbl,
 		Columns: []table.Column{
-			stmtIDCol,
+			stmtIDCol, // index: 0
 			txnIDCol,
 			sesIDCol,
 			accountCol,
 			userCol,
-			hostCol,
+			hostCol, // index: 5
 			dbCol,
 			stmtCol,
 			stmtTagCol,
 			stmtFgCol,
-			nodeUUIDCol,
+			nodeUUIDCol, // index: 10
 			nodeTypeCol,
 			reqAtCol,
 			respAtCol,
 			durationCol,
-			statusCol,
+			statusCol, // index: 15
 			errCodeCol,
 			errorCol,
 			execPlanCol,
 			rowsReadCol,
-			bytesScanCol,
+			bytesScanCol, // index: 20
 			statsCol,
 			stmtTypeCol,
 			queryTypeCol,

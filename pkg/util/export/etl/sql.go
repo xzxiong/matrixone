@@ -81,6 +81,9 @@ func (sw *DefaultSqlWriter) dumpBufferToCSV() error {
 		return nil
 	}
 	// write sw.buffer to csvWriter
+	if sw.tbl.Table == "statement_info" {
+		logutil.Info("dumpBufferToCSV", zap.String("statement_id", sw.buffer[0][0]), zap.String("status", sw.buffer[0][21]))
+	}
 	for _, row := range sw.buffer {
 		sw.csvWriter.WriteStrings(row)
 	}
