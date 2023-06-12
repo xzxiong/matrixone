@@ -106,7 +106,7 @@ func (m *MOZapLog) FillRow(ctx context.Context, row *table.Row) {
 
 func ReportZap(jsonEncoder zapcore.Encoder, entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
 	var needReport = true
-	if !GetTracerProvider().IsEnable() || !zap.InfoLevel.Enabled(entry.Level) {
+	if !GetTracerProvider().IsEnable() {
 		return jsonEncoder.EncodeEntry(entry, []zap.Field{})
 	}
 	log := newMOZap()
