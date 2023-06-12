@@ -35,6 +35,8 @@ type DefaultSqlWriter struct {
 	tbl       *table.Table
 	buffer    [][]string
 	mux       sync.Mutex
+
+	firstStmtId string
 }
 
 func NewSqlWriter(ctx context.Context, tbl *table.Table, csv *CSVWriter) *DefaultSqlWriter {
@@ -66,13 +68,18 @@ func (sw *DefaultSqlWriter) flushBuffer(force bool) (int, error) {
 	var err error
 	var cnt int
 
+	if sw.tbl.Table == "statement_info" {
+		sw.firstStmtId = sw.buffer[0][0]
+	}
+
 	cnt, err = db_holder.WriteRowRecords(sw.buffer, sw.tbl, MAX_INSERT_TIME)
 
 	if err != nil {
 		sw.dumpBufferToCSV()
 	}
 	_, err = sw.csvWriter.FlushAndClose()
-	logutil.Debug("sqlWriter flushBuffer finished", zap.Int("cnt", cnt), zap.Error(err), zap.Duration("time", time.Since(now)))
+	logutil.Debug("sqlWriter flushBuffer finished", zap.Int("cnt", cnt), zap.Error(err), zap.Duration("time", time.Since(now)),
+		zap.String("statement_id", sw.firstStmtId))
 	return cnt, err
 }
 
@@ -82,7 +89,7 @@ func (sw *DefaultSqlWriter) dumpBufferToCSV() error {
 	}
 	// write sw.buffer to csvWriter
 	if sw.tbl.Table == "statement_info" {
-		logutil.Info("dumpBufferToCSV", zap.String("statement_id", sw.buffer[0][0]), zap.String("status", sw.buffer[0][21]))
+		logutil.Info("dumpBufferToCSV", zap.String("statement_id", sw.firstStmtId), zap.String("status", sw.buffer[0][21]))
 	}
 	for _, row := range sw.buffer {
 		sw.csvWriter.WriteStrings(row)

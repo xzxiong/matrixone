@@ -87,7 +87,7 @@ func SetDBConn(conn *sql.DB) {
 	db.Store(conn)
 }
 
-func InitOrRefreshDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
+func InitOrRefreshDBConn(ctx context.Context, forceNewConn bool, randomCN bool) (*sql.DB, error) {
 
 	initFunc := func() error {
 		dbMux.Lock()
@@ -123,10 +123,11 @@ func InitOrRefreshDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
 	if forceNewConn || db.Load() == nil {
 		err := initFunc()
 		if err != nil {
-			logutil.Error("sqlWriter db init failed", zap.Error(err))
+			logutil.Error("sqlWriter db init failed", zap.Error(err), trace.ContextField(ctx))
 			return nil, err
 		}
-		logutil.Debug("sqlWriter db init", zap.Bool("force", forceNewConn), zap.Bool("randomCN", randomCN), zap.String("db", fmt.Sprintf("%v", db.Load())))
+		logutil.Debug("sqlWriter db init", zap.Bool("force", forceNewConn), zap.Bool("randomCN", randomCN), zap.String("db", fmt.Sprintf("%v", db.Load())),
+			trace.ContextField(ctx))
 	}
 	dbConn := db.Load().(*sql.DB)
 	return dbConn, nil
@@ -140,18 +141,22 @@ func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration
 
 	var dbConn *sql.DB
 
+	ctx, span := trace.Start(context.Background(), "WriteRowRecords")
+	defer span.End()
+
 	if DBConnErrCount.Load() > DBConnRetryThreshold {
-		logutil.Warn("sqlWriter WriteRowRecords failed above threshold", zap.Uint32("failures", DBConnErrCount.Load()), zap.Error(err))
-		dbConn, err = InitOrRefreshDBConn(true, true)
+		logutil.Warn("sqlWriter WriteRowRecords failed above threshold", zap.Uint32("failures", DBConnErrCount.Load()), zap.Error(err),
+			trace.ContextField(ctx))
+		dbConn, err = InitOrRefreshDBConn(ctx, true, true)
 		DBConnErrCount.Store(0)
 	} else {
-		dbConn, err = InitOrRefreshDBConn(false, false)
+		dbConn, err = InitOrRefreshDBConn(ctx, false, false)
 	}
 	if err != nil {
-		logutil.Error("sqlWriter db init failed", zap.Error(err))
+		logutil.Error("sqlWriter db init failed", zap.Error(err), trace.ContextField(ctx))
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	done := make(chan error)
@@ -161,13 +166,15 @@ func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration
 	case err := <-done:
 		if err != nil {
 			DBConnErrCount.Add(1)
+			logutil.Debug("sqlWriter got bulkInsert Error.", zap.Error(err), trace.ContextField(ctx))
 		} else {
-			logutil.Debug("sqlWriter WriteRowRecords finished", zap.Int("cnt", len(records)))
+			logutil.Debug("sqlWriter WriteRowRecords finished", zap.Int("cnt", len(records)), trace.ContextField(ctx))
 			return len(records), nil
 		}
 	case <-ctx.Done():
 		DBConnErrCount.Add(1)
 		err = ctx.Err()
+		logutil.Debug("sqlWriter got context.Done", zap.Error(err), trace.ContextField(ctx))
 	}
 
 	return 0, err
@@ -241,6 +248,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 		return
 	}
 	done <- nil
+	logutil.Debug("sqlWriter exec succeed.", trace.ContextField(ctx))
 }
 
 func InitLogger() {
