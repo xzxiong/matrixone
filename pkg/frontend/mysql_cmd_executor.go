@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"io"
 	"sort"
 	"strconv"
@@ -211,7 +212,11 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	if tenant == nil {
 		tenant, _ = GetTenantInfo(ctx, "internal")
 	}
-	text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
+	if tenant.GetUser() == db_holder.MOLoggerUser {
+		text = SubStringFromBegin(envStmt, 128)
+	} else {
+		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
+	}
 	if cw != nil {
 		copy(stmID[:], cw.GetUUID())
 		statement = cw.GetAst()

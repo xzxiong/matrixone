@@ -46,7 +46,6 @@ type = "distributed-tae"
 [cn.frontend]
 port = 16002
 unix-socket = "/tmp/mysql2.sock"
-lengthOfQueryPrinted = 222
 
 [cn.lockservice]
 listen-address = "0.0.0.0:7003"
