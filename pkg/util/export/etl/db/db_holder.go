@@ -189,6 +189,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 		return
 	}
 
+	logutil.Debug("sqlWriter bulkInsert start", trace.ContextField(ctx))
 	baseStr := fmt.Sprintf("/*%s*/INSERT INTO `%s`.`%s` VALUES ", sc.TraceID.String(), tbl.Database, tbl.Table)
 
 	sb := strings.Builder{}
@@ -221,6 +222,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 
 		if sb.Len() >= maxLen || idx == len(records)-1 {
 			stmt := baseStr + sb.String() + ";"
+			logutil.Debug("sqlWriter bulkInsert ExecContext", trace.ContextField(ctx))
 			_, err := tx.ExecContext(ctx, stmt)
 			if err != nil {
 				tx.Rollback()
@@ -232,6 +234,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 			select {
 			case <-ctx.Done():
 				// If context deadline is exceeded, rollback the transaction
+				logutil.Debug("sqlWriter bulkInsert Rollback", trace.ContextField(ctx))
 				tx.Rollback()
 				done <- ctx.Err()
 				return
@@ -242,6 +245,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 			sb.WriteString(",")
 		}
 	}
+	logutil.Debug("sqlWriter bulkInsert Commit", trace.ContextField(ctx))
 	if err := tx.Commit(); err != nil {
 		logutil.Error("sqlWriter commit failed", logutil.ErrorField(err), trace.ContextField(ctx))
 		done <- err

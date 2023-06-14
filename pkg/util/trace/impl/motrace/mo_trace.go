@@ -122,6 +122,8 @@ func (s *MOSpan) Size() int64 {
 func (s *MOSpan) Free() {
 	s.SpanConfig.Reset()
 	s.Parent = nil
+	s.NewRoot = false
+	s.Parent = nil
 	s.Name = ""
 	s.tracer = nil
 	s.ctx = nil
