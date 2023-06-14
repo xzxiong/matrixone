@@ -16,6 +16,7 @@ package etl
 
 import (
 	"context"
+	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"sync"
 	"time"
 
@@ -72,10 +73,13 @@ func (sw *DefaultSqlWriter) flushBuffer(force bool) (int, error) {
 		sw.firstStmtId = sw.buffer[0][0]
 	}
 
-	cnt, err = db_holder.WriteRowRecords(sw.buffer, sw.tbl, MAX_INSERT_TIME)
+	ctx, span := trace.Start(sw.ctx, "flushBuffer")
+	defer span.End()
+
+	cnt, err = db_holder.WriteRowRecords(ctx, sw.buffer, sw.tbl, MAX_INSERT_TIME)
 
 	if err != nil {
-		sw.dumpBufferToCSV()
+		sw.dumpBufferToCSV(ctx)
 	}
 	_, err = sw.csvWriter.FlushAndClose()
 	logutil.Debug("sqlWriter flushBuffer finished", zap.Int("cnt", cnt), zap.Error(err), zap.Duration("time", time.Since(now)),
@@ -83,13 +87,14 @@ func (sw *DefaultSqlWriter) flushBuffer(force bool) (int, error) {
 	return cnt, err
 }
 
-func (sw *DefaultSqlWriter) dumpBufferToCSV() error {
+func (sw *DefaultSqlWriter) dumpBufferToCSV(ctx context.Context) error {
 	if len(sw.buffer) == 0 {
 		return nil
 	}
 	// write sw.buffer to csvWriter
 	if sw.tbl.Table == "statement_info" {
-		logutil.Info("dumpBufferToCSV", zap.String("statement_id", sw.firstStmtId), zap.String("status", sw.buffer[0][21]))
+		logutil.Info("dumpBufferToCSV", zap.String("statement_id", sw.firstStmtId), zap.String("status", sw.buffer[0][21]),
+			trace.ContextField(ctx))
 	}
 	for _, row := range sw.buffer {
 		sw.csvWriter.WriteStrings(row)

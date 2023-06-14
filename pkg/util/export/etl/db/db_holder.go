@@ -133,7 +133,7 @@ func InitOrRefreshDBConn(ctx context.Context, forceNewConn bool, randomCN bool) 
 	return dbConn, nil
 }
 
-func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration) (int, error) {
+func WriteRowRecords(ctx context.Context, records [][]string, tbl *table.Table, timeout time.Duration) (int, error) {
 	if len(records) == 0 {
 		return 0, nil
 	}
@@ -141,7 +141,7 @@ func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration
 
 	var dbConn *sql.DB
 
-	ctx, span := trace.Start(context.Background(), "WriteRowRecords")
+	ctx, span := trace.Start(ctx, "WriteRowRecords")
 	defer span.End()
 
 	if DBConnErrCount.Load() > DBConnRetryThreshold {
@@ -190,6 +190,7 @@ func bulkInsert(ctx context.Context, done chan error, sqlDb *sql.DB, records [][
 	}
 
 	logutil.Debug("sqlWriter bulkInsert start", trace.ContextField(ctx))
+	defer logutil.Debug("sqlWriter bulkInsert quit", trace.ContextField(ctx))
 	baseStr := fmt.Sprintf("/*%s*/INSERT INTO `%s`.`%s` VALUES ", sc.TraceID.String(), tbl.Database, tbl.Table)
 
 	sb := strings.Builder{}

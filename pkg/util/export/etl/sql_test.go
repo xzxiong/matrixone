@@ -15,6 +15,7 @@
 package etl
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func TestDefaultSqlWriter_WriteRowRecords(t *testing.T) {
 	}
 
 	// call the function to test
-	cnt, err := db_holder.WriteRowRecords(records, tbl, 1*time.Second)
+	cnt, err := db_holder.WriteRowRecords(context.TODO(), records, tbl, 1*time.Second)
 
 	// assertions
 	if err != nil {

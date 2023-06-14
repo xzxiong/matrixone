@@ -675,7 +675,7 @@ type SliceCache struct {
 }
 
 func (c *SliceCache) Flush(tbl *table.Table) error {
-	_, err := db_holder.WriteRowRecords(c.m, tbl, MAX_MERGE_INSERT_TIME)
+	_, err := db_holder.WriteRowRecords(context.Background(), c.m, tbl, MAX_MERGE_INSERT_TIME)
 	c.Reset()
 	return err
 }
