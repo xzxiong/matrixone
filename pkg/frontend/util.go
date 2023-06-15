@@ -492,7 +492,7 @@ func logStatementStatus(ctx context.Context, ses *Session, stmt tree.Statement, 
 
 func logStatementStringStatus(ctx context.Context, ses *Session, stmtStr string, status statementStatus, err error) {
 	length := ses.GetParameterUnit().SV.LengthOfQueryPrinted
-	if ses.tenant.User == db_holder.MOLoggerUser {
+	if ses != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		length = 128
 	}
 	str := SubStringFromBegin(stmtStr, int(length))

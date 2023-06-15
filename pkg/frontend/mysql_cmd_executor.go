@@ -3513,7 +3513,7 @@ func (mce *MysqlCmdExecutor) ExecRequest(requestCtx context.Context, ses *Sessio
 		var query = string(req.GetData().([]byte))
 		mce.addSqlCount(1)
 		length := ses.GetParameterUnit().SV.LengthOfQueryPrinted
-		if ses.tenant.User == db_holder.MOLoggerUser {
+		if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 			length = 128
 		}
 		logDebug(nil, ses.GetDebugString(), "query trace", logutil.ConnectionIdField(ses.GetConnectionID()), logutil.QueryField(SubStringFromBegin(query, int(length))))
