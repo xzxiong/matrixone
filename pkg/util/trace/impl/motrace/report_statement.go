@@ -253,6 +253,7 @@ func (s *StatementInfo) SetSerializableExecPlan(execPlan SerializableExecPlan) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	s.ExecPlan = execPlan
+	s.ExecPlan2Json(nil)
 }
 
 func (s *StatementInfo) SetTxnID(id []byte) {

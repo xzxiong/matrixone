@@ -645,7 +645,6 @@ func (op *ObservabilityParameters) SetDefaultValues(version string) {
 	if op.PathBuilder == "" {
 		op.PathBuilder = defaultPathBuilder
 	}
-
 	if op.MergeMaxFileSize <= 0 {
 		op.MergeMaxFileSize = defaultMaxFileSize
 	}
