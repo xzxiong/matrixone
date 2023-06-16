@@ -30,8 +30,8 @@ backend = "DISK-ETL"
 [observability]
 statusPort = 7001
 enableTraceDebug = false
-#longQueryTime = 0.1
 skipRunningStmt = true
+longQueryTime = 0.1
 
 [hakeeper-client]
 service-addresses = [
