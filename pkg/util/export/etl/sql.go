@@ -19,14 +19,16 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+	"github.com/matrixorigin/matrixone/pkg/util/metric"
+
+	_ "github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
 )
 
-const MAX_INSERT_TIME = 3 * time.Second
+var configMaxInsertTimeout = metric.EnvOrDefaultInt[int64]("MO_MAX_INSERT_TIME", 3)
 
 // DefaultSqlWriter SqlWriter is a writer that writes data to a SQL database.
 type DefaultSqlWriter struct {
@@ -66,7 +68,7 @@ func (sw *DefaultSqlWriter) flushBuffer(force bool) (int, error) {
 	var err error
 	var cnt int
 
-	cnt, err = db_holder.WriteRowRecords(sw.buffer, sw.tbl, MAX_INSERT_TIME)
+	cnt, err = db_holder.WriteRowRecords(sw.buffer, sw.tbl, time.Duration(configMaxInsertTimeout)*time.Second)
 
 	if err != nil {
 		logutil.Error("sqlWriter WriteRowRecords failed", zap.Int("cnt", cnt), zap.Error(err), zap.Duration("time", time.Since(now)))
