@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/matrixorigin/matrixone/pkg/util/metric"
 	"sync"
 	"time"
 	"unsafe"
@@ -326,12 +327,14 @@ type StatementOption interface {
 
 type StatementOptionFunc func(*StatementInfo)
 
+var configLogETL = metric.EnvOrDefaultBool("MO_LOG_ETL", 0) == 1
+
 var ReportStatement = func(ctx context.Context, s *StatementInfo) error {
 	if !GetTracerProvider().IsEnable() {
 		return nil
 	}
 	// Filter out the MO_LOGGER SQL statements
-	if s.User == db_holder.MOLoggerUser {
+	if s.User == db_holder.MOLoggerUser && !configLogETL {
 		return nil
 	}
 	// Filter out part of the internal SQL statements

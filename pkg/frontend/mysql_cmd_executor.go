@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"io"
 	"sort"
 	"strconv"
@@ -207,10 +208,8 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		copy(stmID[:], cw.GetUUID())
 		statement = cw.GetAst()
 		ses.ast = statement
-		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 	} else {
 		stmID = uuid.New()
-		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 	}
 	if sqlType != internalSql {
 		ses.pushQueryId(types.Uuid(stmID).ToString())
@@ -222,6 +221,12 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	tenant := ses.GetTenantInfo()
 	if tenant == nil {
 		tenant, _ = GetTenantInfo(ctx, "internal")
+	}
+	if tenant.User == db_holder.MOLoggerUser {
+		val := len(envStmt)
+		text = SubStringFromBegin(envStmt, 64) + "..." + strconv.Itoa(val)
+	} else {
+		text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 	}
 	stm := motrace.NewStatementInfo()
 	// set TransactionID
