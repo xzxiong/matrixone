@@ -165,6 +165,8 @@ type StatementInfo struct {
 	// mark exported
 	exported bool
 
+	reportTimer *time.Timer
+
 	// keep []byte as elem
 	jsonByte, statsJsonByte []byte
 }
@@ -402,12 +404,30 @@ func (s *StatementInfo) IsZeroTxnID() bool {
 	return bytes.Equal(s.TransactionID[:], NilTxnID[:])
 }
 
+// Report with condition
+//  1. global skipRunningStmt = false
+//  2. global agg logic is OFF,
+//     or stmt duration > agg threshold time
 func (s *StatementInfo) Report(ctx context.Context) {
+	doReport := func() {
+		s.reported = true
+		ReportStatement(ctx, s)
+	}
 	if s.Status == StatementStatusRunning && GetTracerProvider().skipRunningStmt {
 		return
 	}
-	s.reported = true
-	ReportStatement(ctx, s)
+	if s.Status == StatementStatusRunning {
+		s.reportTimer = time.AfterFunc(100*time.Millisecond /*agg threshold cfg*/, func() {
+			s.mux.Lock()
+			defer s.mux.Lock()
+			if !s.reported {
+				doReport()
+			}
+		})
+		return
+	} else {
+		doReport()
+	}
 }
 
 var EndStatement = func(ctx context.Context, err error, sentRows int64) {
@@ -421,6 +441,10 @@ var EndStatement = func(ctx context.Context, err error, sentRows int64) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	if !s.end { // cooperate with s.mux
+		if s.reportTimer != nil {
+			s.reportTimer.Stop()
+			s.reportTimer = nil
+		}
 		// do report
 		s.end = true
 		s.ResultCount = sentRows
