@@ -73,7 +73,7 @@ func (sw *DefaultSqlWriter) flushBuffer(force bool) (int, error) {
 		sw.firstStmtId = sw.buffer[0][0]
 	}
 
-	ctx, span := trace.Start(sw.ctx, "flushBuffer")
+	ctx, span := trace.Start(sw.ctx, "flushBuffer", trace.WithNewRoot(true))
 	defer span.End()
 
 	cnt, err = db_holder.WriteRowRecords(ctx, sw.buffer, sw.tbl, MAX_INSERT_TIME)

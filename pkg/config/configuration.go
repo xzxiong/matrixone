@@ -164,7 +164,7 @@ var (
 	defaultCleanKillQueueInterval = 60
 
 	// defaultLongSpanTime default: 10 s
-	defaultLongSpanTime = 10 * time.Second
+	defaultLongSpanTime = 1 * time.Second
 )
 
 // FrontendParameters of the frontend
