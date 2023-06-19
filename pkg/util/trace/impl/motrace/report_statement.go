@@ -71,7 +71,7 @@ func StatementInfoUpdate(existing, new Item) {
 	e.Duration += n.Duration
 	e.Statement = e.Statement + "; " + n.Statement
 	e.AggrCount += 1
-	// reponseAt is the last response time
+	// responseAt is the last response time
 	e.ResponseAt = n.ResponseAt
 	n.ExecPlan2Stats(context.Background())
 	err := mergeStats(e, n)
@@ -416,8 +416,8 @@ func (s *StatementInfo) Report(ctx context.Context) {
 	if s.Status == StatementStatusRunning && GetTracerProvider().skipRunningStmt {
 		return
 	}
-	if s.Status == StatementStatusRunning {
-		s.reportTimer = time.AfterFunc(100*time.Millisecond /*agg threshold cfg*/, func() {
+	if s.Status == StatementStatusRunning && !GetTracerProvider().disableStmtAggregation {
+		s.reportTimer = time.AfterFunc(GetTracerProvider().selectAggrThreshold, func() {
 			s.mux.Lock()
 			defer s.mux.Lock()
 			if !s.reported {
