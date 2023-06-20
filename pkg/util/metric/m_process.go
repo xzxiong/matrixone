@@ -17,10 +17,13 @@ package metric
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	prom "github.com/prometheus/client_golang/prometheus"
+
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/process"
 )
 
@@ -30,7 +33,7 @@ import (
 // - open fds & max fds (not available on MacOS)
 // - virtual_resident_mem_bytes
 
-var processCollector = newBatchStatsCollector(procCpuPercent{}, procMemUsage{}, procOpenFds{}, procCpuTotal{})
+var processCollector = newBatchStatsCollector(NewProcCpuPercent(), procMemUsage{}, procOpenFds{}, procCpuTotal{})
 
 var pid = int32(os.Getpid())
 
@@ -43,10 +46,22 @@ var getProcess = func() any {
 	}
 }
 
-// this percent may exceeds 100% on multicore platform
-type procCpuPercent struct{}
+// procCpuPercent represent Process CPU busy percentage, this value may exceed 100% on multicore platform
+type procCpuPercent struct {
+	lastTime     time.Time
+	lastCPUTimes *cpu.TimesStat
+}
 
-func (c procCpuPercent) Desc() *prom.Desc {
+func NewProcCpuPercent() *procCpuPercent {
+	return &procCpuPercent{
+		lastTime: time.Now(),
+		lastCPUTimes: &cpu.TimesStat{
+			CPU: "cpu",
+		},
+	}
+}
+
+func (c *procCpuPercent) Desc() *prom.Desc {
 	return prom.NewDesc(
 		"process_cpu_percent",
 		"Process CPU busy percentage",
@@ -54,19 +69,36 @@ func (c procCpuPercent) Desc() *prom.Desc {
 	)
 }
 
-func (c procCpuPercent) Metric(ctx context.Context, s *statCaches) (prom.Metric, error) {
+func (c *procCpuPercent) Metric(ctx context.Context, s *statCaches) (prom.Metric, error) {
 	val := s.getOrInsert(cacheKeyProcess, getProcess)
 	if val == nil {
 		return nil, moerr.NewInternalError(ctx, "empty process")
 	}
 	proc := val.(*process.Process)
 
-	// Percent use cpuStats.Total because cpuStats in process has no Idel field
-	if percent, err := proc.CPUPercent(); err != nil {
+	curTime := time.Now()
+	if curCpuTimes, err := proc.TimesWithContext(ctx); err != nil {
 		return nil, err
 	} else {
+		delta := curTime.Sub(c.lastTime).Seconds()
+		percent := calculatePercent(c.lastCPUTimes, curCpuTimes, delta, 1)
+		c.lastCPUTimes = curCpuTimes
+		c.lastTime = curTime
 		return prom.MustNewConstMetric(c.Desc(), prom.GaugeValue, percent), nil
 	}
+}
+
+// calculatePercent do the percent calculation
+// numCpu cooperate with delta.
+// If delta represent N Cpu cores, then you can calculate value in [0, 100%] or value in [0, N*100%]
+// if delta represent ONE cpu cores, then numCpu should just pass value:1, and you will get value in [0, N*100%]
+func calculatePercent(t1, t2 *cpu.TimesStat, delta float64, numCpu int) float64 {
+	if delta == 0 {
+		return 0
+	}
+	deltaProc := t2.Total() - t1.Total()
+	overallPercent := ((deltaProc / delta) * 100) * float64(numCpu)
+	return overallPercent
 }
 
 type procMemUsage struct{}
