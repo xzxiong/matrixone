@@ -18,7 +18,7 @@ import (
 	"strconv"
 )
 
-type StatsArray [StatsArrayLength]uint64
+type StatsArray [StatsArrayLength]float64
 
 const (
 	StatsArrayVersion = StatsArrayVersion1
@@ -50,26 +50,26 @@ func (s *StatsArray) Reset() *StatsArray {
 	return s.WithVersion(StatsArrayVersion).WithTimeConsumed(0).WithMemorySize(0).WithS3IOInputCount(0).WithS3IOOutputCount(0)
 }
 
-func (s *StatsArray) GetVersion() uint64         { return (*s)[StatsArrayIndexVersion] }
-func (s *StatsArray) GetTimeConsumed() uint64    { return (*s)[StatsArrayIndexTimeConsumed] }    // unit: ns
-func (s *StatsArray) GetMemorySize() uint64      { return (*s)[StatsArrayIndexMemorySize] }      // unit: byte
-func (s *StatsArray) GetS3IOInputCount() uint64  { return (*s)[StatsArrayIndexS3IOInputCount] }  // unit: count
-func (s *StatsArray) GetS3IOOutputCount() uint64 { return (*s)[StatsArrayIndexS3IOOutputCount] } // unit: count
+func (s *StatsArray) GetVersion() float64         { return (*s)[StatsArrayIndexVersion] }
+func (s *StatsArray) GetTimeConsumed() float64    { return (*s)[StatsArrayIndexTimeConsumed] }    // unit: ns
+func (s *StatsArray) GetMemorySize() float64      { return (*s)[StatsArrayIndexMemorySize] }      // unit: byte
+func (s *StatsArray) GetS3IOInputCount() float64  { return (*s)[StatsArrayIndexS3IOInputCount] }  // unit: count
+func (s *StatsArray) GetS3IOOutputCount() float64 { return (*s)[StatsArrayIndexS3IOOutputCount] } // unit: count
 
-func (s *StatsArray) WithVersion(v uint64) *StatsArray { (*s)[StatsArrayIndexVersion] = v; return s }
-func (s *StatsArray) WithTimeConsumed(v uint64) *StatsArray {
+func (s *StatsArray) WithVersion(v float64) *StatsArray { (*s)[StatsArrayIndexVersion] = v; return s }
+func (s *StatsArray) WithTimeConsumed(v float64) *StatsArray {
 	(*s)[StatsArrayIndexTimeConsumed] = v
 	return s
 }
-func (s *StatsArray) WithMemorySize(v uint64) *StatsArray {
+func (s *StatsArray) WithMemorySize(v float64) *StatsArray {
 	(*s)[StatsArrayIndexMemorySize] = v
 	return s
 }
-func (s *StatsArray) WithS3IOInputCount(v uint64) *StatsArray {
+func (s *StatsArray) WithS3IOInputCount(v float64) *StatsArray {
 	(*s)[StatsArrayIndexS3IOInputCount] = v
 	return s
 }
-func (s *StatsArray) WithS3IOOutputCount(v uint64) *StatsArray {
+func (s *StatsArray) WithS3IOOutputCount(v float64) *StatsArray {
 	(*s)[StatsArrayIndexS3IOOutputCount] = v
 	return s
 }
@@ -90,7 +90,7 @@ func (s *StatsArray) Add(src *StatsArray) *StatsArray {
 }
 
 // ArrayUint64ToJsonString return json arr format
-func ArrayUint64ToJsonString(arr []uint64) []byte {
+func ArrayUint64ToJsonString(arr []float64) []byte {
 	// len([1,184467440737095516161,18446744073709551616,18446744073709551616,18446744073709551616]") = 88
 	buf := make([]byte, 0, 128)
 	buf = append(buf, '[')
@@ -98,7 +98,7 @@ func ArrayUint64ToJsonString(arr []uint64) []byte {
 		if idx > 0 {
 			buf = append(buf, ',')
 		}
-		buf = strconv.AppendUint(buf, v, 10)
+		buf = strconv.AppendFloat(buf, v, 'f', 0, 64)
 	}
 	buf = append(buf, ']')
 	return buf

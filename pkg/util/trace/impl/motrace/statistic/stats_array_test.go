@@ -16,21 +16,26 @@ package statistic
 
 import (
 	"github.com/stretchr/testify/require"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func TestNewStatsArray(t *testing.T) {
 	type field struct {
-		version      uint64
-		timeConsumed uint64
-		memory       uint64
-		s3in         uint64
-		s3out        uint64
+		version      float64
+		timeConsumed float64
+		memory       float64
+		s3in         float64
+		s3out        float64
 	}
 	tests := []struct {
 		name       string
 		field      field
 		wantString []byte
+		//wantAddString
+		wantAddString []byte
+		wantTimeVal   float64
 	}{
 		{
 			name: "normal",
@@ -41,7 +46,9 @@ func TestNewStatsArray(t *testing.T) {
 				s3in:         4,
 				s3out:        5,
 			},
-			wantString: []byte(`[1,2,3,4,5]`),
+			wantString:    []byte(`[1,2,3,4,5]`),
+			wantAddString: []byte(`[1,3,5,7,9]`),
+			wantTimeVal:   float64(3),
 		},
 		{
 			name: "random",
@@ -52,9 +59,29 @@ func TestNewStatsArray(t *testing.T) {
 				s3in:         78,
 				s3out:        3494,
 			},
-			wantString: []byte(`[123,65,6,78,3494]`),
+			wantString:    []byte(`[123,65,6,78,3494]`),
+			wantAddString: []byte(`[1,66,8,81,3498]`),
+			wantTimeVal:   float64(66),
+		},
+		{
+			name: "big",
+			field: field{
+				version:      123,
+				timeConsumed: (1 << 30) * float64(24*time.Hour),
+				memory:       6,
+				s3in:         78,
+				s3out:        3494,
+			},
+			wantString:    []byte(`[123,92771293593600000000000,6,78,3494]`),
+			wantAddString: []byte(`[1,92771293593600000000001,8,81,3498]`),
+			wantTimeVal:   float64(92771293593600000000002),
 		},
 	}
+
+	getInitStatsArray := func() *StatsArray {
+		return NewStatsArray().WithTimeConsumed(1).WithMemorySize(2).WithS3IOInputCount(3).WithS3IOOutputCount(4)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewStatsArray().
@@ -70,62 +97,26 @@ func TestNewStatsArray(t *testing.T) {
 			require.Equal(t, tt.field.memory, s.GetMemorySize())
 			require.Equal(t, tt.field.s3in, s.GetS3IOInputCount())
 			require.Equal(t, tt.field.s3out, s.GetS3IOOutputCount())
+
+			dst := getInitStatsArray()
+			gotAdd := dst.Add(s).ToJsonString()
+			require.Equal(t, tt.wantTimeVal, dst[1])
+			require.Equal(t, tt.wantAddString, gotAdd)
 		})
 	}
 }
 
-func TestStatsArray_Add(t *testing.T) {
-	type field struct {
-		version      uint64
-		timeConsumed uint64
-		memory       uint64
-		s3in         uint64
-		s3out        uint64
-	}
-	tests := []struct {
-		name       string
-		field      field
-		wantString []byte
-	}{
-		{
-			name: "normal",
-			field: field{
-				version:      1,
-				timeConsumed: 2,
-				memory:       3,
-				s3in:         4,
-				s3out:        5,
-			},
-			wantString: []byte(`[1,3,5,7,9]`),
-		},
-		{
-			name: "random",
-			field: field{
-				version:      123,
-				timeConsumed: 65,
-				memory:       6,
-				s3in:         78,
-				s3out:        3494,
-			},
-			wantString: []byte(`[1,66,8,81,3498]`),
-		},
-	}
+func TestNewStatsArray_big(t *testing.T) {
+	v1, v2 := float64(1), float64(92771293593600000000000)
+	got := v1
+	got += v2
+	gotStr := strconv.FormatFloat(got, 'f', 0, 64)
+	require.Equal(t, float64(92771293593600000000001), got)
+	require.Equal(t, "92771293593600000000001", gotStr)
 
-	getInitStatsArray := func() *StatsArray {
-		return NewStatsArray().WithTimeConsumed(1).WithMemorySize(2).WithS3IOInputCount(3).WithS3IOOutputCount(4)
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dst := getInitStatsArray()
-			s := NewStatsArray().
-				WithVersion(tt.field.version).
-				WithTimeConsumed(tt.field.timeConsumed).
-				WithMemorySize(tt.field.memory).
-				WithS3IOInputCount(tt.field.s3in).
-				WithS3IOOutputCount(tt.field.s3out)
-			got := dst.Add(s).ToJsonString()
-			require.Equal(t, tt.wantString, got)
-		})
-	}
+	got = v2
+	got += v1
+	gotStr = strconv.FormatFloat(got, 'f', 0, 64)
+	require.Equal(t, float64(92771293593600000000001), got)
+	require.Equal(t, "92771293593600000000001", gotStr)
 }

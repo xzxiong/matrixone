@@ -3952,33 +3952,33 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 }
 
 func getStatsFromGlobal(global explain.Global, duration uint64) (s statistic.StatsArray) {
-	var timeConsumed, memorySize, s3IOInputCount, s3IOOutputCount uint64
+	var timeConsumed, memorySize, s3IOInputCount, s3IOOutputCount float64
 
 	for _, stat := range global.Statistics.Time {
 		if stat.Name == "Time Consumed" {
-			timeConsumed = uint64(stat.Value)
+			timeConsumed = float64(stat.Value)
 			break
 		}
 	}
 
 	for _, stat := range global.Statistics.Memory {
 		if stat.Name == "Memory Size" {
-			memorySize = uint64(stat.Value)
+			memorySize = float64(stat.Value)
 			break
 		}
 	}
 
 	for _, stat := range global.Statistics.IO {
 		if stat.Name == "S3 IO Input Count" {
-			s3IOInputCount = uint64(stat.Value)
+			s3IOInputCount = float64(stat.Value)
 		} else if stat.Name == "S3 IO Output Count" {
-			s3IOOutputCount = uint64(stat.Value)
+			s3IOOutputCount = float64(stat.Value)
 		}
 	}
 
 	s.Init().
 		WithTimeConsumed(timeConsumed).
-		WithMemorySize(memorySize * duration).
+		WithMemorySize(memorySize * float64(duration)).
 		WithS3IOInputCount(s3IOInputCount).
 		WithS3IOOutputCount(s3IOOutputCount)
 	return
