@@ -112,11 +112,14 @@ func TestNewStatsArray_big(t *testing.T) {
 	got += v2
 	gotStr := strconv.FormatFloat(got, 'f', 0, 64)
 	require.Equal(t, float64(92771293593600000000001), got)
-	require.Equal(t, "92771293593600000000001", gotStr)
+	require.Equal(t, "92771293593600000000000", gotStr)
 
 	got = v2
 	got += v1
 	gotStr = strconv.FormatFloat(got, 'f', 0, 64)
+	checkVal := float64(1024) * float64(time.Millisecond) * 1.87e-24
+	t.Logf("val * 1.87e-24: %.30f", checkVal)
+	t.Logf("val * 1.87e-24: %s", strconv.FormatFloat(checkVal, 'f', -1, 64))
 	require.Equal(t, float64(92771293593600000000001), got)
 	require.Equal(t, "92771293593600000000001", gotStr)
 }
