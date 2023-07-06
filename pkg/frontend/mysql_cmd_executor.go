@@ -3263,6 +3263,7 @@ func recordGoutineInfo(requestCtx context.Context, stmt tree.Statement) {
 		trace.Start(requestCtx, "ExecRequest",
 			trace.WithHungThreshold(time.Minute), // be careful
 			trace.WithProfileGoroutine(),
+			trace.WithProfileTraceSecs(10*time.Second),
 		)
 	default:
 		break
