@@ -2472,6 +2472,18 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 	var loadLocalErrGroup *errgroup.Group
 	var loadLocalWriter *io.PipeWriter
 
+	// record goroutine info when ddl stmt run timeout
+	switch stmt.(type) {
+	case *tree.CreateTable, *tree.DropTable, *tree.CreateDatabase, *tree.DropDatabase:
+		_, span := trace.Start(requestCtx, "executeStmtHung",
+			trace.WithHungThreshold(time.Minute), // be careful with this options
+			trace.WithProfileGoroutine(),
+			trace.WithProfileTraceSecs(10*time.Second),
+		)
+		defer span.End()
+	default:
+	}
+
 	//execution succeeds during the transaction. commit the transaction
 	commitTxnFunc := func() error {
 		//load data handle txn failure internally
@@ -3256,20 +3268,6 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 	return retErr
 }
 
-// record goroutine info when ddl stmt run timeout
-func recordGoutineInfo(requestCtx context.Context, stmt tree.Statement) {
-	switch stmt.(type) {
-	case *tree.CreateTable, *tree.DropTable, *tree.CreateDatabase, *tree.DropDatabase:
-		trace.Start(requestCtx, "ExecRequest",
-			trace.WithHungThreshold(time.Minute), // be careful
-			trace.WithProfileGoroutine(),
-			trace.WithProfileTraceSecs(10*time.Second),
-		)
-	default:
-		break
-	}
-}
-
 // execute query
 func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserInput) (retErr error) {
 	beginInstant := time.Now()
@@ -3401,7 +3399,6 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 			}
 		}
 
-		recordGoutineInfo(requestCtx, stmt)
 		err = mce.executeStmt(requestCtx, ses, stmt, proc, cw, i, cws, proto, pu, tenant)
 		if err != nil {
 			return err
