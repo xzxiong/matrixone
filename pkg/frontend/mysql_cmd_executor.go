@@ -3260,18 +3260,10 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 func recordGoutineInfo(requestCtx context.Context, stmt tree.Statement) {
 	switch stmt.(type) {
 	case *tree.CreateTable, *tree.DropTable, *tree.CreateDatabase, *tree.DropDatabase:
-		go func() {
-			ctx, cancel := context.WithTimeout(requestCtx, time.Minute)
-			select {
-			case <-requestCtx.Done():
-				cancel()
-				return
-			case <-ctx.Done():
-				_, span := trace.Start(ctx, "ExecRequest", trace.WithProfileGoroutine())
-				span.End()
-				cancel()
-			}
-		}()
+		trace.Start(requestCtx, "ExecRequest",
+			trace.WithHungThreshold(time.Minute), // be careful
+			trace.WithProfileGoroutine(),
+		)
 	default:
 		break
 	}

@@ -181,6 +181,10 @@ type SpanConfig struct {
 	profileGoroutine  bool
 	profileHeap       bool
 	profileCpuDur     time.Duration
+
+	// hungThreshold set by WithHungThreshold
+	// It will override Span ctx deadline setting, and start a goroutine to check ctx deadline
+	hungThreshold time.Duration
 }
 
 func (c *SpanConfig) Reset() {
@@ -191,10 +195,20 @@ func (c *SpanConfig) Reset() {
 	c.profileGoroutine = false
 	c.profileHeap = false
 	c.profileCpuDur = 0
+	c.hungThreshold = 0
 }
 
 func (c *SpanConfig) GetLongTimeThreshold() time.Duration {
 	return c.LongTimeThreshold
+}
+
+func (c *SpanConfig) HungThreshold() time.Duration {
+	return c.hungThreshold
+}
+
+// NeedProfile return true if set profileGoroutine, profileHeap, profileCpuDur
+func (c *SpanConfig) NeedProfile() bool {
+	return c.profileGoroutine || c.profileHeap || c.profileCpuDur > 0
 }
 
 // ProfileGoroutine return the value set by WithProfileGoroutine
@@ -253,6 +267,14 @@ func WithKind(kind SpanKind) spanOptionFunc {
 func WithLongTimeThreshold(d time.Duration) SpanStartOption {
 	return spanOptionFunc(func(cfg *SpanConfig) {
 		cfg.LongTimeThreshold = d
+	})
+}
+
+// WithHungThreshold please be careful to using this option.
+// it may start new goroutine to check hung deadline.
+func WithHungThreshold(d time.Duration) SpanStartOption {
+	return spanOptionFunc(func(cfg *SpanConfig) {
+		cfg.hungThreshold = d
 	})
 }
 
