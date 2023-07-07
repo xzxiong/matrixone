@@ -24,7 +24,6 @@ package motrace
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/stack"
 	"sync"
@@ -100,7 +99,8 @@ type MOHungSpan struct {
 	deadlineCtx    context.Context
 	deadlineCancel context.CancelFunc
 	// mux control doProfile exec order
-	mux sync.Mutex
+	mux    sync.Mutex
+	caller *stack.Stack
 }
 
 func newMOHungSpan(span *MOSpan) *MOHungSpan {
@@ -113,10 +113,16 @@ func newMOHungSpan(span *MOSpan) *MOHungSpan {
 		quitCancel:     originCancel,
 		deadlineCtx:    ctx,
 		deadlineCancel: cancel,
+		caller:         stack.Callers(0),
 	}
 }
 
 func (s *MOHungSpan) loop() {
+	defer func() {
+		if err := recover(); err != nil {
+			logutil.Panicf("panic, start from : %+v", s.caller)
+		}
+	}()
 	select {
 	case <-s.quitCtx.Done():
 	case <-s.deadlineCtx.Done():
@@ -126,7 +132,7 @@ func (s *MOHungSpan) loop() {
 			break
 		}
 		s.doProfile()
-		logutil.Warn(fmt.Sprintf("span trigger hung threshold: %+v", stack.Callers(0)),
+		logutil.Warn("span trigger hung threshold",
 			trace.SpanField(s.SpanContext()),
 			zap.String("span_name", s.Name),
 			zap.Duration("threshold", s.HungThreshold()))
