@@ -24,7 +24,9 @@ package motrace
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
+	"github.com/matrixorigin/matrixone/pkg/util/stack"
 	"sync"
 	"time"
 	"unsafe"
@@ -124,7 +126,7 @@ func (s *MOHungSpan) loop() {
 			break
 		}
 		s.doProfile()
-		logutil.Warn("span trigger hung threshold",
+		logutil.Warn(fmt.Sprintf("span trigger hung threshold: %+v", stack.Callers(0)),
 			trace.SpanField(s.SpanContext()),
 			zap.String("span_name", s.Name),
 			zap.Duration("threshold", s.HungThreshold()))
