@@ -117,7 +117,7 @@ func newMOHungSpan(span *MOSpan) *MOHungSpan {
 func (s *MOHungSpan) loop() {
 	select {
 	case <-s.quitCtx.Done():
-	case <-s.ctx.Done():
+	case <-s.deadlineCtx.Done():
 		s.mux.Lock()
 		defer s.mux.Unlock()
 		s.doProfile()
