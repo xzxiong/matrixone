@@ -93,30 +93,30 @@ var _ trace.Span = (*MOHungSpan)(nil)
 
 type MOHungSpan struct {
 	*MOSpan
-	parentCtx    context.Context
-	parentCancel context.CancelFunc
-	ctx          context.Context
-	cancel       context.CancelFunc
+	quitCtx        context.Context
+	quitCancel     context.CancelFunc
+	deadlineCtx    context.Context
+	deadlineCancel context.CancelFunc
 	// mux control doProfile exec order
 	mux sync.Mutex
 }
 
 func newMOHungSpan(span *MOSpan) *MOHungSpan {
 	originCtx, originCancel := context.WithCancel(span.ctx)
-	ctx, cancel := context.WithTimeout(originCtx, span.SpanConfig.HungThreshold())
+	ctx, cancel := context.WithTimeout(span.ctx, span.SpanConfig.HungThreshold())
 	span.ctx = ctx
 	return &MOHungSpan{
-		MOSpan:       span,
-		parentCtx:    originCtx,
-		parentCancel: originCancel,
-		ctx:          ctx,
-		cancel:       cancel,
+		MOSpan:         span,
+		quitCtx:        originCtx,
+		quitCancel:     originCancel,
+		deadlineCtx:    ctx,
+		deadlineCancel: cancel,
 	}
 }
 
 func (s *MOHungSpan) loop() {
 	select {
-	case <-s.parentCtx.Done():
+	case <-s.quitCtx.Done():
 	case <-s.ctx.Done():
 		s.mux.Lock()
 		defer s.mux.Unlock()
@@ -126,13 +126,13 @@ func (s *MOHungSpan) loop() {
 			zap.String("span_name", s.Name),
 			zap.Duration("threshold", s.HungThreshold()))
 	}
-	s.cancel()
+	s.deadlineCancel()
 }
 
 func (s *MOHungSpan) End(options ...trace.SpanEndOption) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	s.parentCancel()
+	s.quitCancel()
 	s.MOSpan.End(options...)
 }
 
