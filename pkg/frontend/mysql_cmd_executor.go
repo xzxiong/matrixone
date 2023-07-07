@@ -2476,7 +2476,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 	switch stmt.(type) {
 	case *tree.CreateTable, *tree.DropTable, *tree.CreateDatabase, *tree.DropDatabase:
 		_, span := trace.Start(requestCtx, "executeStmtHung",
-			trace.WithHungThreshold(time.Minute), // be careful with this options
+			trace.WithLongTimeThreshold(time.Minute), // be careful with this options
 			trace.WithProfileGoroutine(),
 			trace.WithProfileTraceSecs(10*time.Second),
 		)
