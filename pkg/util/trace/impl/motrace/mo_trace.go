@@ -97,6 +97,8 @@ type MOHungSpan struct {
 	parentCancel context.CancelFunc
 	ctx          context.Context
 	cancel       context.CancelFunc
+	// mux control doProfile exec order
+	mux sync.Mutex
 }
 
 func newMOHungSpan(span *MOSpan) *MOHungSpan {
@@ -116,6 +118,8 @@ func (s *MOHungSpan) loop() {
 	select {
 	case <-s.parentCtx.Done():
 	case <-s.ctx.Done():
+		s.mux.Lock()
+		defer s.mux.Unlock()
 		s.doProfile()
 		logutil.Warn("span trigger hung threshold",
 			trace.SpanField(s.SpanContext()),
@@ -126,6 +130,8 @@ func (s *MOHungSpan) loop() {
 }
 
 func (s *MOHungSpan) End(options ...trace.SpanEndOption) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 	s.parentCancel()
 	s.MOSpan.End(options...)
 }
@@ -146,9 +152,8 @@ type MOSpan struct {
 	tracer     *MOTracer
 	ctx        context.Context
 	needRecord bool
-	// mux used in doProfile
-	mux         sync.Mutex
-	doneProfile bool // cooperate with mux
+
+	doneProfile bool
 }
 
 var spanPool = &sync.Pool{New: func() any {
@@ -285,8 +290,6 @@ func (s *MOSpan) doProfileRuntime(ctx context.Context, name string, debug int) {
 
 // doProfile is sync op.
 func (s *MOSpan) doProfile() {
-	s.mux.Lock()
-	defer s.mux.Unlock()
 	if s.doneProfile {
 		return
 	}
