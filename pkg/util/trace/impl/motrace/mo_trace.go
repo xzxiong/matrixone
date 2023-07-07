@@ -120,6 +120,9 @@ func (s *MOHungSpan) loop() {
 	case <-s.deadlineCtx.Done():
 		s.mux.Lock()
 		defer s.mux.Unlock()
+		if e := s.quitCtx.Err(); e == context.Canceled {
+			break
+		}
 		s.doProfile()
 		logutil.Warn("span trigger hung threshold",
 			trace.SpanField(s.SpanContext()),
