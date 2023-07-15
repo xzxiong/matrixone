@@ -29,6 +29,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/pb/metadata"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"go.uber.org/zap"
 )
 
@@ -122,7 +123,11 @@ func SetDBConn(conn *sql.DB) {
 	db.Store(conn)
 }
 
-func InitOrRefreshDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
+func InitOrRefreshDBConn(ctx context.Context, forceNewConn bool, randomCN bool) (*sql.DB, error) {
+	_, span := trace.Start(ctx, "InitOrRefreshDBConn",
+		trace.WithHungThreshold(time.Minute),
+		trace.WithProfileGoroutine())
+	defer span.End()
 	logger := getLogger()
 	initFunc := func() error {
 		dbMux.Lock()
@@ -167,7 +172,7 @@ func InitOrRefreshDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
 	return dbConn, nil
 }
 
-func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration) (int, error) {
+func WriteRowRecords(ctx context.Context, records [][]string, tbl *table.Table, timeout time.Duration) (int, error) {
 	if len(records) == 0 {
 		return 0, nil
 	}
@@ -182,17 +187,17 @@ func WriteRowRecords(records [][]string, tbl *table.Table, timeout time.Duration
 		if dbConn != nil {
 			dbConn.Close()
 		}
-		dbConn, err = InitOrRefreshDBConn(true, true)
+		dbConn, err = InitOrRefreshDBConn(ctx, true, true)
 		DBConnErrCount.Store(0)
 	} else {
-		dbConn, err = InitOrRefreshDBConn(false, false)
+		dbConn, err = InitOrRefreshDBConn(ctx, false, false)
 	}
 	if err != nil {
 		logger.Debug("sqlWriter db init failed", zap.Error(err))
 		return 0, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	err = bulkInsert(ctx, dbConn, records, tbl, MaxInsertLen, MiddleInsertLen)
@@ -266,6 +271,11 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 	}
 	var logger = getLogger()
 	var sqls *prepareSQLs
+	ctx, span := trace.Start(ctx, "bulkInsert",
+		trace.WithHungThreshold(time.Minute),
+		trace.WithProfileGoroutine())
+	defer span.End()
+
 	key := fmt.Sprintf("%s_%s", tbl.Database, tbl.Table)
 	if val, ok := prepareSQLMap.Load(key); ok {
 		sqls = val.(*prepareSQLs)

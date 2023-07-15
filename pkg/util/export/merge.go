@@ -434,7 +434,7 @@ func (m *Merge) doMergeFiles(ctx context.Context, account string, files []*FileM
 
 		// sql insert
 		if cacheFileData.Size() > 0 {
-			if err = cacheFileData.Flush(m.Table); err != nil {
+			if err = cacheFileData.Flush(ctx, m.Table); err != nil {
 				return err
 			}
 			cacheFileData.Reset()
@@ -664,7 +664,7 @@ func newETLWriter(ctx context.Context, fs fileservice.FileService, filePath stri
 type Cache interface {
 	Put(*table.Row)
 	Size() int64
-	Flush(*table.Table) error
+	Flush(context.Context, *table.Table) error
 	Reset()
 	IsEmpty() bool
 }
@@ -674,8 +674,8 @@ type SliceCache struct {
 	size int64
 }
 
-func (c *SliceCache) Flush(tbl *table.Table) error {
-	_, err := db_holder.WriteRowRecords(c.m, tbl, MAX_MERGE_INSERT_TIME)
+func (c *SliceCache) Flush(ctx context.Context, tbl *table.Table) error {
+	_, err := db_holder.WriteRowRecords(ctx, c.m, tbl, MAX_MERGE_INSERT_TIME)
 	c.Reset()
 	return err
 }

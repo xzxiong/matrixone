@@ -15,6 +15,7 @@
 package etl
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 )
 
 func TestDefaultSqlWriter_WriteRowRecords(t *testing.T) {
+	ctx := context.TODO()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -52,7 +54,7 @@ func TestDefaultSqlWriter_WriteRowRecords(t *testing.T) {
 	}
 
 	// call the function to test
-	cnt, err := db_holder.WriteRowRecords(records, tbl, 1*time.Second)
+	cnt, err := db_holder.WriteRowRecords(ctx, records, tbl, 1*time.Second)
 
 	// assertions
 	if err != nil {
