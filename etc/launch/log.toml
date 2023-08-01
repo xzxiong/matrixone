@@ -4,3 +4,7 @@ data-dir = "./mo-data"
 
 [log]
 level = "info"
+
+[[fileservice]]
+name = "SHARED"
+backend = "DISK-ETL"
