@@ -66,11 +66,18 @@ func NewStatsArrayV2() *StatsArray {
 }
 
 func (s *StatsArray) Init() *StatsArray {
+	if s == nil {
+		return NewStatsArray()
+	}
 	return s.WithVersion(StatsArrayVersion)
 }
 
 func (s *StatsArray) Reset() *StatsArray {
-	return s.WithVersion(StatsArrayVersion).
+	var ss *StatsArray = s
+	if s == nil {
+		ss = NewStatsArray()
+	}
+	return ss.WithVersion(StatsArrayVersion).
 		// StatsArrayVersion1
 		WithTimeConsumed(0).WithMemorySize(0).WithS3IOInputCount(0).WithS3IOOutputCount(0).
 		// StatsArrayVersion2
@@ -108,7 +115,9 @@ func (s *StatsArray) WithS3IOOutputCount(v float64) *StatsArray {
 	return s
 }
 func (s *StatsArray) WithOutTrafficBytes(v float64) *StatsArray {
-	(*s)[StatsArrayIndexOutTrafficBytes] = v
+	if s.GetVersion() >= StatsArrayVersion2 {
+		(*s)[StatsArrayIndexOutTrafficBytes] = v
+	}
 	return s
 }
 
