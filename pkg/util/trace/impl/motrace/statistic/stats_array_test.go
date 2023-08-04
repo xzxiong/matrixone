@@ -101,7 +101,7 @@ func TestNewStatsArray(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewStatsArray().
+			s := NewStatsArrayV1().
 				WithVersion(tt.field.version).
 				WithTimeConsumed(tt.field.timeConsumed).
 				WithMemorySize(tt.field.memory).
@@ -156,18 +156,78 @@ func TestStatsArray_Add(t *testing.T) {
 	}
 
 	getInitStatsArray := func() *StatsArray {
-		return NewStatsArray().WithTimeConsumed(1).WithMemorySize(2).WithS3IOInputCount(3).WithS3IOOutputCount(4)
+		return NewStatsArrayV1().WithTimeConsumed(1).WithMemorySize(2).WithS3IOInputCount(3).WithS3IOOutputCount(4)
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dst := getInitStatsArray()
-			s := NewStatsArray().
+			s := NewStatsArrayV1().
 				WithVersion(tt.field.version).
 				WithTimeConsumed(tt.field.timeConsumed).
 				WithMemorySize(tt.field.memory).
 				WithS3IOInputCount(tt.field.s3in).
 				WithS3IOOutputCount(tt.field.s3out)
+			got := dst.Add(s).ToJsonString()
+			require.Equal(t, tt.wantString, got)
+		})
+	}
+}
+
+func TestStatsArray_AddV2(t *testing.T) {
+	type field struct {
+		version      float64
+		timeConsumed float64
+		memory       float64
+		s3in         float64
+		s3out        float64
+		traffic      float64
+	}
+	tests := []struct {
+		name       string
+		field      field
+		wantString []byte
+	}{
+		{
+			name: "normal",
+			field: field{
+				version:      1,
+				timeConsumed: 2,
+				memory:       3,
+				s3in:         4,
+				s3out:        5,
+				traffic:      6,
+			},
+			wantString: []byte(`[2,3,5.000,7,9,11]`),
+		},
+		{
+			name: "random",
+			field: field{
+				version:      123,
+				timeConsumed: 65,
+				memory:       6,
+				s3in:         78,
+				s3out:        3494,
+				traffic:      456,
+			},
+			wantString: []byte(`[2,66,8.000,81,3498,461]`),
+		},
+	}
+
+	getInitStatsArray := func() *StatsArray {
+		return NewStatsArrayV2().WithTimeConsumed(1).WithMemorySize(2).WithS3IOInputCount(3).WithS3IOOutputCount(4).WithOutTrafficBytes(5)
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dst := getInitStatsArray()
+			s := NewStatsArrayV2().
+				WithVersion(tt.field.version).
+				WithTimeConsumed(tt.field.timeConsumed).
+				WithMemorySize(tt.field.memory).
+				WithS3IOInputCount(tt.field.s3in).
+				WithS3IOOutputCount(tt.field.s3out).
+				WithOutTrafficBytes(tt.field.traffic)
 			got := dst.Add(s).ToJsonString()
 			require.Equal(t, tt.wantString, got)
 		})
