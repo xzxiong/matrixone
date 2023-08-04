@@ -46,57 +46,57 @@ func TestNewStatsArray(t *testing.T) {
 		{
 			name: "random",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       6,
 				s3in:         78,
 				s3out:        3494,
 			},
-			wantString: []byte(`[123,65,6.000,78,3494]`),
+			wantString: []byte(`[1,65,6.000,78,3494]`),
 		},
 		{
 			name: "random_with_0",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       0,
 				s3in:         7834,
 				s3out:        0,
 			},
-			wantString: []byte(`[123,65,0,7834,0]`),
+			wantString: []byte(`[1,65,0,7834,0]`),
 		},
 		{
 			name: "scale_3",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       0.001,
 				s3in:         7834,
 				s3out:        0,
 			},
-			wantString: []byte(`[123,65,0.001,7834,0]`),
+			wantString: []byte(`[1,65,0.001,7834,0]`),
 		},
 		{
 			name: "scale_0.00049",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       0.0001,
 				s3in:         7834,
 				s3out:        0,
 			},
-			wantString: []byte(`[123,65,0.000,7834,0]`),
+			wantString: []byte(`[1,65,0.000,7834,0]`),
 		},
 		{
 			name: "scale_0.0005",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       0.0005,
 				s3in:         7834,
 				s3out:        0,
 			},
-			wantString: []byte(`[123,65,0.001,7834,0]`),
+			wantString: []byte(`[1,65,0.001,7834,0]`),
 		},
 	}
 	for _, tt := range tests {
@@ -145,7 +145,7 @@ func TestStatsArray_Add(t *testing.T) {
 		{
 			name: "random",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       6,
 				s3in:         78,
@@ -203,7 +203,7 @@ func TestStatsArray_AddV2(t *testing.T) {
 		{
 			name: "random",
 			field: field{
-				version:      123,
+				version:      1,
 				timeConsumed: 65,
 				memory:       6,
 				s3in:         78,
@@ -222,7 +222,6 @@ func TestStatsArray_AddV2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dst := getInitStatsArray()
 			s := NewStatsArrayV2().
-				WithVersion(tt.field.version).
 				WithTimeConsumed(tt.field.timeConsumed).
 				WithMemorySize(tt.field.memory).
 				WithS3IOInputCount(tt.field.s3in).

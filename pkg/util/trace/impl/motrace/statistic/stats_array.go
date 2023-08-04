@@ -18,7 +18,7 @@ import (
 	"strconv"
 )
 
-type StatsArray []float64
+type StatsArray [StatsArrayLength]float64
 
 const (
 	Decimal128ToFloat64Scale = 5
@@ -51,14 +51,11 @@ const (
 
 func NewStatsArray() *StatsArray {
 	var s StatsArray
-	s = make([]float64, StatsArrayLength)
 	return s.Init()
 }
 
 func NewStatsArrayV1() *StatsArray {
-	var s StatsArray
-	s = make([]float64, StatsArrayLengthV1)
-	return s.WithVersion(StatsArrayVersion1)
+	return NewStatsArray().WithVersion(StatsArrayVersion1)
 }
 
 func NewStatsArrayV2() *StatsArray {
@@ -66,18 +63,11 @@ func NewStatsArrayV2() *StatsArray {
 }
 
 func (s *StatsArray) Init() *StatsArray {
-	if s == nil {
-		return NewStatsArray()
-	}
 	return s.WithVersion(StatsArrayVersion)
 }
 
 func (s *StatsArray) Reset() *StatsArray {
-	var ss *StatsArray = s
-	if s == nil {
-		ss = NewStatsArray()
-	}
-	return ss.WithVersion(StatsArrayVersion).
+	return s.WithVersion(StatsArrayVersion).
 		// StatsArrayVersion1
 		WithTimeConsumed(0).WithMemorySize(0).WithS3IOInputCount(0).WithS3IOOutputCount(0).
 		// StatsArrayVersion2
@@ -97,6 +87,7 @@ func (s *StatsArray) GetOutTrafficBytes() float64 { // unit: byte
 	return (*s)[StatsArrayIndexOutTrafficBytes]
 }
 
+// WithVersion set the version array in StatsArray, please carefully to use.
 func (s *StatsArray) WithVersion(v float64) *StatsArray { (*s)[StatsArrayIndexVersion] = v; return s }
 func (s *StatsArray) WithTimeConsumed(v float64) *StatsArray {
 	(*s)[StatsArrayIndexTimeConsumed] = v
@@ -122,6 +113,9 @@ func (s *StatsArray) WithOutTrafficBytes(v float64) *StatsArray {
 }
 
 func (s *StatsArray) ToJsonString() []byte {
+	if s.GetVersion() == StatsArrayVersion1 {
+		return StatsArrayToJsonString((*s)[:StatsArrayLengthV1])
+	}
 	return StatsArrayToJsonString((*s)[:])
 }
 
