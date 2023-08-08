@@ -193,6 +193,8 @@ type MysqlProtocol interface {
 
 	GetStats() string
 
+	CalculateOutTrafficBytes() int64
+
 	ParseExecuteData(ctx context.Context, proc *process.Process, stmt *PrepareStmt, data []byte, pos int) error
 
 	ParseSendLongData(ctx context.Context, proc *process.Process, stmt *PrepareStmt, data []byte, pos int) error
@@ -246,6 +248,8 @@ type rowHandler struct {
 	untilBytesInOutbufToFlush int
 	//the count of the flush
 	flushCount int
+	//the bytes have been response
+	outTrafficBytes int64
 }
 
 /*
@@ -266,6 +270,7 @@ func (rh *rowHandler) resetPacket() {
 resetFlushOutBuffer clears the bytesInOutBuffer
 */
 func (rh *rowHandler) resetFlushOutBuffer() {
+	rh.outTrafficBytes += int64(rh.bytesInOutBuffer)
 	rh.bytesInOutBuffer = 0
 }
 
@@ -274,6 +279,17 @@ resetFlushCount reset flushCount
 */
 func (rh *rowHandler) resetFlushCount() {
 	rh.flushCount = 0
+}
+
+// resetOutTrafficBytes reset the outTrafficBytes
+func (rh *rowHandler) resetOutTrafficBytes() {
+	rh.outTrafficBytes = int64(-rh.bytesInOutBuffer)
+}
+
+// calculateLastOutTrafficBytes calculate the last part of out traffic bytes, just right after query response.
+func (rh *rowHandler) calculateLastOutTrafficBytes() int64 {
+	rh.outTrafficBytes += int64(rh.bytesInOutBuffer)
+	return rh.outTrafficBytes
 }
 
 type MysqlProtocolImpl struct {
@@ -373,9 +389,14 @@ func (mp *MysqlProtocolImpl) GetStats() string {
 		mp.String())
 }
 
+func (mp *MysqlProtocolImpl) CalculateOutTrafficBytes() int64 {
+	return mp.calculateLastOutTrafficBytes()
+}
+
 func (mp *MysqlProtocolImpl) ResetStatistics() {
 	mp.ResetStats()
 	mp.resetFlushCount()
+	mp.resetOutTrafficBytes()
 }
 
 func (mp *MysqlProtocolImpl) GetConnectAttrs() map[string]string {
@@ -2246,8 +2267,9 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRow(mrs *MysqlResultSet, cnt 
 }
 
 func (mp *MysqlProtocolImpl) statisticOutTraffic(startIdx int) {
-	endIdx := mp.tcpConn.OutBuf().GetWriteIndex()
-	mp.ses.trafficBytes.Add(int64(endIdx - startIdx))
+	/*endIdx := mp.tcpConn.OutBuf().GetWriteIndex()
+	mp.ses.trafficBytes.Add(int64(endIdx - startIdx))*/
+	// empty test
 }
 
 func (mp *MysqlProtocolImpl) SendResultSetTextBatchRowSpeedup(mrs *MysqlResultSet, cnt uint64) error {

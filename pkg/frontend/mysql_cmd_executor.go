@@ -277,6 +277,7 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	proc.WithSpanContext(sc)
 	reqCtx := ses.GetRequestContext()
 	ses.SetRequestContext(trace.ContextWithSpanContext(reqCtx, sc))
+	//ses.GetMysqlProtocol().ResetOutTrafficBytes()
 	return motrace.ContextWithStatement(trace.ContextWithSpanContext(ctx, sc), stm)
 }
 
@@ -437,6 +438,7 @@ func getDataFromPipeline(obj interface{}, bat *batch.Batch) error {
 	procBatchTime := time.Since(procBatchBegin)
 	tTime := time.Since(begin)
 	ses.sentRows.Add(int64(n))
+	ses.trafficBytes.Add(proto.CalculateOutTrafficBytes())
 	logDebugf(ses.GetDebugString(), "rowCount %v \n"+
 		"time of getDataFromPipeline : %s \n"+
 		"processBatchTime %v \n"+
