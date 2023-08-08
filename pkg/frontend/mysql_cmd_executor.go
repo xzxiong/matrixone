@@ -3968,6 +3968,7 @@ func NewJsonPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *
 	jsonBytes := h.Marshal(ctx)
 	statsBytes, stats := h.Stats(ctx)
 	statsBytes.WithOutTrafficBytes(float64(ses.trafficBytes.Load()))
+	logutil.Infof("MarshalPlan Output Traffic: %s, %d", uuid.UUID(h.stmt.StatementID).String(), ses.trafficBytes.Load())
 	return &jsonPlanHandler{
 		jsonBytes:  jsonBytes,
 		statsBytes: statsBytes,
@@ -4095,6 +4096,7 @@ func (h *marshalPlanHandler) Marshal(ctx context.Context) (jsonBytes []byte) {
 }
 
 func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.StatsArray, stats motrace.Statistic) {
+	var val int64
 	if h.query != nil {
 		options := &explain.MarshalPlanOptions
 		statsByte.Reset()
@@ -4108,9 +4110,15 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 				stats.RowsRead += rows
 				stats.BytesScan += bytes
 			}
+			if node.NodeType == plan.Node_PROJECT {
+				if options.Analyze && node.AnalyzeInfo != nil {
+					val += node.AnalyzeInfo.OutputSize
+				}
+			}
 		}
 	} else {
 		statsByte = statistic.DefaultStatsArray
 	}
+	logutil.Infof("MarshalPlan Output Project: %s, %d", uuid.UUID(h.stmt.StatementID).String(), val)
 	return
 }
