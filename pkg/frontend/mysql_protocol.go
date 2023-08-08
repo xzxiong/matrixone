@@ -1860,6 +1860,8 @@ func (mp *MysqlProtocolImpl) SendColumnDefinitionPacket(ctx context.Context, col
 		return moerr.NewInternalError(ctx, "sendColumn need MysqlColumn")
 	}
 
+	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+
 	var data []byte
 	if mp.capability&CLIENT_PROTOCOL_41 != 0 {
 		data = mp.makeColumnDefinition41Payload(mysqlColumn, cmd)
@@ -1874,6 +1876,7 @@ func (mp *MysqlProtocolImpl) SendColumnCountPacket(count uint64) error {
 	pos := HeaderOffset
 	pos = mp.writeIntLenEnc(data, pos, count)
 
+	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
 	return mp.writePackets(data[:pos])
 }
 
@@ -2231,6 +2234,7 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRow(mrs *MysqlResultSet, cnt 
 
 	mp.m.Lock()
 	defer mp.m.Unlock()
+	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
 	var err error = nil
 
 	for i := uint64(0); i < cnt; i++ {
@@ -2239,6 +2243,11 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRow(mrs *MysqlResultSet, cnt 
 		}
 	}
 	return err
+}
+
+func (mp *MysqlProtocolImpl) statisticOutTraffic(startIdx int) {
+	endIdx := mp.tcpConn.OutBuf().GetWriteIndex()
+	mp.ses.trafficBytes.Add(int64(endIdx - startIdx))
 }
 
 func (mp *MysqlProtocolImpl) SendResultSetTextBatchRowSpeedup(mrs *MysqlResultSet, cnt uint64) error {
@@ -2257,13 +2266,10 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRowSpeedup(mrs *MysqlResultSe
 		binary = true
 	}
 
+	// statistic out traffic, CASE 1: send back to client
+	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+
 	//make rows into the batch
-	var beginIdx, endIdx int
-	beginIdx = mp.tcpConn.OutBuf().GetWriteIndex()
-	defer func() {
-		endIdx = mp.tcpConn.OutBuf().GetWriteIndex()
-		mp.ses.trafficBytes.Add(int64(endIdx - beginIdx)) // statistic out traffic, CASE 1: send back to client
-	}()
 	for i := uint64(0); i < cnt; i++ {
 		err = mp.openRow(nil)
 		if err != nil {
