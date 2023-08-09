@@ -395,6 +395,7 @@ endL:
 // and set RowsRead, BytesScan from ExecPlan
 func (s *StatementInfo) ExecPlan2Stats(ctx context.Context) []byte {
 	var stats Statistic
+	var statsArray statistic.StatsArray
 
 	if s.ExecPlan == nil {
 		if s.statsArray.GetVersion() == 0 {
@@ -402,7 +403,8 @@ func (s *StatementInfo) ExecPlan2Stats(ctx context.Context) []byte {
 		}
 		return s.statsArray.ToJsonString()
 	} else {
-		s.statsArray, stats = s.ExecPlan.Stats(ctx)
+		statsArray, stats = s.ExecPlan.Stats(ctx)
+		s.statsArray.Add(&statsArray)
 		s.RowsRead = stats.RowsRead
 		s.BytesScan = stats.BytesScan
 		return s.statsArray.ToJsonString()
