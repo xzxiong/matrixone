@@ -4123,6 +4123,9 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 	} else {
 		statsByte = statistic.DefaultStatsArray
 	}
+	if cnt > 1 {
+		logutil.Infof("MarshalPlan Output Project where cnt>1, stmt: %s, %s", uuid.UUID(h.stmt.StatementID).String(), h.stmt.Statement)
+	}
 	logutil.Infof("MarshalPlan Output Project: %s, %d, cnt: %d", uuid.UUID(h.stmt.StatementID).String(), val, cnt)
 	return
 }
