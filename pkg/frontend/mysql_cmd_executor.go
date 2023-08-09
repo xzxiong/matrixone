@@ -3970,7 +3970,7 @@ func NewJsonPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *
 	jsonBytes := h.Marshal(ctx)
 	statsBytes, stats := h.Stats(ctx)
 	statsBytes.WithOutTrafficBytes(float64(ses.trafficBytes.Load()))
-	logutil.Infof("MarshalPlan Output Traffic: %s, %d", uuid.UUID(h.stmt.StatementID).String(), ses.trafficBytes.Load())
+	logutil.Infof("MarshalPlan Output Traffic: %s, %d, %d", uuid.UUID(h.stmt.StatementID).String(), ses.trafficBytes.Load(), ses.trafficBytesSum.Load())
 	return &jsonPlanHandler{
 		jsonBytes:  jsonBytes,
 		statsBytes: statsBytes,

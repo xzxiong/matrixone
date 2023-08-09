@@ -348,7 +348,7 @@ func (mp *MysqlProtocolImpl) SendResponse(ctx context.Context, resp *Response) e
 
 	mp.m.Lock()
 	defer mp.m.Unlock()
-	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+	defer mp.statisticOutTraffic()
 
 	switch resp.category {
 	case OkResponse:

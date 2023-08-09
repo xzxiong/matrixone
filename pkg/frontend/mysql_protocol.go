@@ -250,6 +250,8 @@ type rowHandler struct {
 	flushCount int
 	//the bytes have been response
 	outTrafficBytes int64
+	// lastIdxInOutBuffer
+	lastIdxInOutBuffer int
 }
 
 /*
@@ -282,6 +284,10 @@ func (rh *rowHandler) resetFlushCount() {
 }
 
 // resetOutTrafficBytes reset the outTrafficBytes
+// how to resetOutTrafficBytes, resetFlushOutBuffer and calculateLastOutTrafficBytes work together ?
+// 0. init. call resetOutTrafficBytes at the beginning of query
+// 1. batch write. while resetFlushOutBuffer
+// 2. last data. calculateLastOutTrafficBytes
 func (rh *rowHandler) resetOutTrafficBytes() {
 	rh.outTrafficBytes = int64(-rh.bytesInOutBuffer)
 }
@@ -1766,6 +1772,7 @@ func (mp *MysqlProtocolImpl) sendEOFPacket(warnings, status uint16) error {
 }
 
 func (mp *MysqlProtocolImpl) SendEOFPacketIf(warnings, status uint16) error {
+	defer mp.statisticOutTraffic()
 	//If the CLIENT_DEPRECATE_EOF client capabilities flag is not set, EOF_Packet
 	if mp.capability&CLIENT_DEPRECATE_EOF == 0 {
 		return mp.sendEOFPacket(warnings, status)
@@ -1881,7 +1888,7 @@ func (mp *MysqlProtocolImpl) SendColumnDefinitionPacket(ctx context.Context, col
 		return moerr.NewInternalError(ctx, "sendColumn need MysqlColumn")
 	}
 
-	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+	defer mp.statisticOutTraffic()
 
 	var data []byte
 	if mp.capability&CLIENT_PROTOCOL_41 != 0 {
@@ -1897,7 +1904,7 @@ func (mp *MysqlProtocolImpl) SendColumnCountPacket(count uint64) error {
 	pos := HeaderOffset
 	pos = mp.writeIntLenEnc(data, pos, count)
 
-	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+	defer mp.statisticOutTraffic()
 	return mp.writePackets(data[:pos])
 }
 
@@ -2255,7 +2262,7 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRow(mrs *MysqlResultSet, cnt 
 
 	mp.m.Lock()
 	defer mp.m.Unlock()
-	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+	defer mp.statisticOutTraffic()
 	var err error = nil
 
 	for i := uint64(0); i < cnt; i++ {
@@ -2266,10 +2273,11 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRow(mrs *MysqlResultSet, cnt 
 	return err
 }
 
-func (mp *MysqlProtocolImpl) statisticOutTraffic(startIdx int) {
-	/*endIdx := mp.tcpConn.OutBuf().GetWriteIndex()
-	mp.ses.trafficBytes.Add(int64(endIdx - startIdx))*/
-	// empty test
+// statisticOutTraffic statistic out traffic, CASE 1: data send back to client
+func (mp *MysqlProtocolImpl) statisticOutTraffic() {
+	endIdx := mp.tcpConn.OutBuf().GetWriteIndex()
+	mp.ses.trafficBytesSum.Add(int64(endIdx - mp.lastIdxInOutBuffer))
+	mp.lastIdxInOutBuffer = endIdx
 }
 
 func (mp *MysqlProtocolImpl) SendResultSetTextBatchRowSpeedup(mrs *MysqlResultSet, cnt uint64) error {
@@ -2288,8 +2296,7 @@ func (mp *MysqlProtocolImpl) SendResultSetTextBatchRowSpeedup(mrs *MysqlResultSe
 		binary = true
 	}
 
-	// statistic out traffic, CASE 1: send back to client
-	defer mp.statisticOutTraffic(mp.tcpConn.OutBuf().GetWriteIndex())
+	defer mp.statisticOutTraffic()
 
 	//make rows into the batch
 	for i := uint64(0); i < cnt; i++ {
