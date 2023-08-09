@@ -277,7 +277,6 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	proc.WithSpanContext(sc)
 	reqCtx := ses.GetRequestContext()
 	ses.SetRequestContext(trace.ContextWithSpanContext(reqCtx, sc))
-	//ses.GetMysqlProtocol().ResetOutTrafficBytes()
 	return motrace.ContextWithStatement(trace.ContextWithSpanContext(ctx, sc), stm)
 }
 
@@ -300,11 +299,11 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 				sqlType = sqlTypes[i]
 			}
 			ctx = RecordStatement(ctx, ses, proc, nil, envBegin, sql, sqlType, true)
-			motrace.EndStatement(ctx, retErr, 0, 60)
+			motrace.EndStatement(ctx, retErr, 0, 0)
 		}
 	} else {
 		ctx = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true)
-		motrace.EndStatement(ctx, retErr, 0, 60)
+		motrace.EndStatement(ctx, retErr, 0, 0)
 	}
 
 	tenant := ses.GetTenantInfo()

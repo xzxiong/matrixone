@@ -448,6 +448,11 @@ func (s *StatementInfo) MarkResponseAt() {
 	}
 }
 
+// ErrorPkgConst = 56 + 13
+// 56: empty mysql tcp package size
+// 13: avg payload prefix of err msg
+const ErrorPkgConst = 69
+
 var EndStatement = func(ctx context.Context, err error, sentRows int64, outBytes int64) {
 	if !GetTracerProvider().IsEnable() {
 		return
@@ -464,6 +469,9 @@ var EndStatement = func(ctx context.Context, err error, sentRows int64, outBytes
 		s.ResultCount = sentRows
 		s.AggrCount = 0
 		s.MarkResponseAt()
+		if err != nil {
+			outBytes += ErrorPkgConst + int64(len(err.Error()))
+		}
 		s.statsArray.WithOutTrafficBytes(float64(outBytes))
 		logutil.Infof("MarshalPlan Output Traffic: %s, %d, %d", uuid.UUID(s.StatementID).String(), outBytes)
 		s.Status = StatementStatusSuccess
