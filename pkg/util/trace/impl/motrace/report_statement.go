@@ -473,7 +473,6 @@ var EndStatement = func(ctx context.Context, err error, sentRows int64, outBytes
 			outBytes += ErrorPkgConst + int64(len(err.Error()))
 		}
 		s.statsArray.WithOutTrafficBytes(float64(outBytes))
-		logutil.Infof("MarshalPlan Output Traffic: %s, %d, %d", uuid.UUID(s.StatementID).String(), outBytes)
 		s.Status = StatementStatusSuccess
 		if err != nil {
 			s.Error = err
