@@ -300,11 +300,11 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 				sqlType = sqlTypes[i]
 			}
 			ctx = RecordStatement(ctx, ses, proc, nil, envBegin, sql, sqlType, true)
-			motrace.EndStatement(ctx, retErr, 0)
+			motrace.EndStatement(ctx, retErr, 0, 60)
 		}
 	} else {
 		ctx = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true)
-		motrace.EndStatement(ctx, retErr, 0)
+		motrace.EndStatement(ctx, retErr, 0, 60)
 	}
 
 	tenant := ses.GetTenantInfo()
@@ -438,7 +438,6 @@ func getDataFromPipeline(obj interface{}, bat *batch.Batch) error {
 	procBatchTime := time.Since(procBatchBegin)
 	tTime := time.Since(begin)
 	ses.sentRows.Add(int64(n))
-	ses.trafficBytes.Add(proto.CalculateOutTrafficBytes())
 	logDebugf(ses.GetDebugString(), "rowCount %v \n"+
 		"time of getDataFromPipeline : %s \n"+
 		"processBatchTime %v \n"+
@@ -3965,12 +3964,10 @@ type jsonPlanHandler struct {
 	buffer     *bytes.Buffer
 }
 
-func NewJsonPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *plan2.Plan, ses *Session) *jsonPlanHandler {
+func NewJsonPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *plan2.Plan) *jsonPlanHandler {
 	h := NewMarshalPlanHandler(ctx, stmt, plan)
 	jsonBytes := h.Marshal(ctx)
 	statsBytes, stats := h.Stats(ctx)
-	statsBytes.WithOutTrafficBytes(float64(ses.trafficBytes.Load()))
-	logutil.Infof("MarshalPlan Output Traffic: %s, %d, %d", uuid.UUID(h.stmt.StatementID).String(), ses.trafficBytes.Load(), ses.trafficBytesSum.Load())
 	return &jsonPlanHandler{
 		jsonBytes:  jsonBytes,
 		statsBytes: statsBytes,

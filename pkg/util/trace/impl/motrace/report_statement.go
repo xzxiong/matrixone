@@ -446,7 +446,7 @@ func (s *StatementInfo) MarkResponseAt() {
 	}
 }
 
-var EndStatement = func(ctx context.Context, err error, sentRows int64) {
+var EndStatement = func(ctx context.Context, err error, sentRows int64, outBytes int64) {
 	if !GetTracerProvider().IsEnable() {
 		return
 	}
@@ -462,6 +462,8 @@ var EndStatement = func(ctx context.Context, err error, sentRows int64) {
 		s.ResultCount = sentRows
 		s.AggrCount = 0
 		s.MarkResponseAt()
+		s.statsArray.WithOutTrafficBytes(float64(outBytes))
+		logutil.Infof("MarshalPlan Output Traffic: %s, %d, %d", uuid.UUID(s.StatementID).String(), outBytes)
 		s.Status = StatementStatusSuccess
 		if err != nil {
 			s.Error = err
