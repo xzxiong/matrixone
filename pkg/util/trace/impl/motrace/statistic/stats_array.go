@@ -84,57 +84,57 @@ func (s *StatsArray) Reset() *StatsArray {
 	// Next Version
 }
 
-func (s *StatsArray) GetVersion() float64         { return s[StatsArrayIndexVersion] }
-func (s *StatsArray) GetTimeConsumed() float64    { return s[StatsArrayIndexTimeConsumed] }    // unit: ns
-func (s *StatsArray) GetMemorySize() float64      { return s[StatsArrayIndexMemorySize] }      // unit: byte
-func (s *StatsArray) GetS3IOInputCount() float64  { return s[StatsArrayIndexS3IOInputCount] }  // unit: count
-func (s *StatsArray) GetS3IOOutputCount() float64 { return s[StatsArrayIndexS3IOOutputCount] } // unit: count
+func (s *StatsArray) GetVersion() float64         { return (*s)[StatsArrayIndexVersion] }
+func (s *StatsArray) GetTimeConsumed() float64    { return (*s)[StatsArrayIndexTimeConsumed] }    // unit: ns
+func (s *StatsArray) GetMemorySize() float64      { return (*s)[StatsArrayIndexMemorySize] }      // unit: byte
+func (s *StatsArray) GetS3IOInputCount() float64  { return (*s)[StatsArrayIndexS3IOInputCount] }  // unit: count
+func (s *StatsArray) GetS3IOOutputCount() float64 { return (*s)[StatsArrayIndexS3IOOutputCount] } // unit: count
 func (s *StatsArray) GetOutTrafficBytes() float64 { // unit: byte
 	if s.GetVersion() < StatsArrayVersion2 {
 		return 0
 	}
-	return s[StatsArrayIndexOutTrafficBytes]
+	return (*s)[StatsArrayIndexOutTrafficBytes]
 }
 
 // WithVersion set the version array in StatsArray, please carefully to use.
-func (s *StatsArray) WithVersion(v float64) *StatsArray { s[StatsArrayIndexVersion] = v; return s }
+func (s *StatsArray) WithVersion(v float64) *StatsArray { (*s)[StatsArrayIndexVersion] = v; return s }
 func (s *StatsArray) WithTimeConsumed(v float64) *StatsArray {
-	s[StatsArrayIndexTimeConsumed] = v
+	(*s)[StatsArrayIndexTimeConsumed] = v
 	return s
 }
 func (s *StatsArray) WithMemorySize(v float64) *StatsArray {
-	s[StatsArrayIndexMemorySize] = v
+	(*s)[StatsArrayIndexMemorySize] = v
 	return s
 }
 func (s *StatsArray) WithS3IOInputCount(v float64) *StatsArray {
-	s[StatsArrayIndexS3IOInputCount] = v
+	(*s)[StatsArrayIndexS3IOInputCount] = v
 	return s
 }
 func (s *StatsArray) WithS3IOOutputCount(v float64) *StatsArray {
-	s[StatsArrayIndexS3IOOutputCount] = v
+	(*s)[StatsArrayIndexS3IOOutputCount] = v
 	return s
 }
 func (s *StatsArray) WithOutTrafficBytes(v float64) *StatsArray {
 	if s.GetVersion() >= StatsArrayVersion2 {
-		s[StatsArrayIndexOutTrafficBytes] = v
+		(*s)[StatsArrayIndexOutTrafficBytes] = v
 	}
 	return s
 }
 
 func (s *StatsArray) ToJsonString() []byte {
 	if s.GetVersion() == StatsArrayVersion1 {
-		return StatsArrayToJsonString(s[:StatsArrayLengthV1])
+		return StatsArrayToJsonString((*s)[:StatsArrayLengthV1])
 	}
-	return StatsArrayToJsonString(s[:])
+	return StatsArrayToJsonString((*s)[:])
 }
 
 func (s *StatsArray) Add(src *StatsArray) *StatsArray {
-	dstLen := len(src)
-	if len(s) < dstLen {
-		dstLen = len(s)
+	dstLen := len(*src)
+	if len(*s) < len(*src) {
+		dstLen = len(*s)
 	}
 	for idx := 1; idx < dstLen; idx++ {
-		s[idx] += src[idx]
+		(*s)[idx] += (*src)[idx]
 	}
 	return s
 }
