@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
+	"regexp"
 	"testing"
 	"time"
 
@@ -371,6 +372,105 @@ func TestCalculateAggrMemoryBytes(t *testing.T) {
 			val1 := mustDecimal128(convertFloat64ToDecimal128(tt.fields.dividend))
 			gotVal := calculateAggrMemoryBytes(val1, tt.fields.divisor)
 			require.Equal(t, tt.want, gotVal)
+		})
+	}
+}
+
+var internalIpRegexp = regexp.MustCompile(`^(10|172|192)\..*`)
+
+var regexpMethod = func(ip string) bool {
+	return internalIpRegexp.MatchString(ip)
+}
+
+var stringPrefix = func(ip string) bool {
+	return len(ip) > 4 &&
+		(ip[:3] == "10." || ip[:4] == "172." || ip[:4] == "192.")
+}
+
+func TestIpMatch(t *testing.T) {
+
+	tests := []struct {
+		name string
+		ip   string
+		op   func(string) bool
+		want bool
+	}{
+		{
+			name: "10.*",
+			ip:   "10.112.1.51",
+			want: true,
+		},
+		{
+			name: "172.*",
+			ip:   "172.0.1.2",
+			want: true,
+		},
+		{
+			name: "192.*",
+			ip:   "192.0.1.2",
+			want: true,
+		},
+		{
+			name: "100.*",
+			ip:   "100.0.1.2",
+			want: false,
+		},
+		{
+			name: "10",
+			ip:   "10",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := regexpMethod(tt.ip)
+			got2 := stringPrefix(tt.ip)
+			require.Equal(t, tt.want, got)
+			require.Equal(t, tt.want, got2)
+		})
+	}
+}
+
+func BenchmarkIpWork(b *testing.B) {
+
+	benchmarks := []struct {
+		name string
+		ip   string
+		op   func(string) bool
+	}{
+		{
+			name: "10.*",
+			ip:   "10.112.1.51",
+		},
+		{
+			name: "172.*",
+			ip:   "172.0.1.2",
+		},
+		{
+			name: "192.*",
+			ip:   "192.0.1.2",
+		},
+		{
+			name: "100.*",
+			ip:   "100.0.1.2",
+		},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run("regexpMethod:"+bm.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				regexpMethod(bm.ip)
+			}
+		})
+	}
+	for _, bm := range benchmarks {
+		b.Run("stringPrefix:"+bm.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				stringPrefix(bm.ip)
+			}
 		})
 	}
 }
