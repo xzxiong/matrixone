@@ -376,15 +376,19 @@ func TestCalculateAggrMemoryBytes(t *testing.T) {
 	}
 }
 
-var internalIpRegexp = regexp.MustCompile(`^(10|172|192)\..*`)
+var internalIpRegexp = regexp.MustCompile(`^(10|172\.(1[6-9]|2[0-9]|3[0-1])|192.168)\..*`)
 
 var regexpMethod = func(ip string) bool {
 	return internalIpRegexp.MatchString(ip)
 }
 
 var stringPrefix = func(ip string) bool {
-	return len(ip) > 4 &&
-		(ip[:3] == "10." || ip[:4] == "172." || ip[:4] == "192.")
+	return len(ip) > 7 &&
+		(ip[:3] == "10." || ip[:7] == "192.168" ||
+			((ip[:6] == "172.16") || (ip[:6] == "172.17") || (ip[:6] == "172.18") || (ip[:6] == "172.19") ||
+				(ip[:6] == "172.20") || (ip[:6] == "172.21") || (ip[:6] == "172.22") || (ip[:6] == "172.23") ||
+				(ip[:6] == "172.24") || (ip[:6] == "172.25") || (ip[:6] == "172.26") || (ip[:6] == "172.27") ||
+				(ip[:6] == "172.28") || (ip[:6] == "172.29") || (ip[:6] == "172.30") || (ip[:6] == "172.31")))
 }
 
 func TestIpMatch(t *testing.T) {
@@ -392,7 +396,6 @@ func TestIpMatch(t *testing.T) {
 	tests := []struct {
 		name string
 		ip   string
-		op   func(string) bool
 		want bool
 	}{
 		{
@@ -401,14 +404,29 @@ func TestIpMatch(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "172.*",
-			ip:   "172.0.1.2",
+			name: "172.16.*",
+			ip:   "172.16.1.2",
 			want: true,
 		},
 		{
-			name: "192.*",
-			ip:   "192.0.1.2",
+			name: "172.31.*",
+			ip:   "172.31.1.2",
 			want: true,
+		},
+		{
+			name: "172.0.*",
+			ip:   "172.0.1.2",
+			want: false,
+		},
+		{
+			name: "192.168.*",
+			ip:   "192.168.1.2",
+			want: true,
+		},
+		{
+			name: "192.0.*",
+			ip:   "192.0.1.2",
+			want: false,
 		},
 		{
 			name: "100.*",
@@ -437,23 +455,47 @@ func BenchmarkIpWork(b *testing.B) {
 	benchmarks := []struct {
 		name string
 		ip   string
-		op   func(string) bool
+		want bool
 	}{
 		{
 			name: "10.*",
 			ip:   "10.112.1.51",
+			want: true,
 		},
 		{
-			name: "172.*",
+			name: "172.16.*",
+			ip:   "172.16.1.2",
+			want: true,
+		},
+		{
+			name: "172.31.*",
+			ip:   "172.31.1.2",
+			want: true,
+		},
+		{
+			name: "172.0.*",
 			ip:   "172.0.1.2",
+			want: false,
 		},
 		{
-			name: "192.*",
+			name: "192.168.*",
+			ip:   "192.168.1.2",
+			want: true,
+		},
+		{
+			name: "192.0.*",
 			ip:   "192.0.1.2",
+			want: false,
 		},
 		{
 			name: "100.*",
 			ip:   "100.0.1.2",
+			want: false,
+		},
+		{
+			name: "10",
+			ip:   "10",
+			want: false,
 		},
 	}
 
