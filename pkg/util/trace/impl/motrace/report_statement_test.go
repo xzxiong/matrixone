@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
+	"net"
 	"regexp"
 	"testing"
 	"time"
@@ -376,7 +377,7 @@ func TestCalculateAggrMemoryBytes(t *testing.T) {
 	}
 }
 
-var internalIpRegexp = regexp.MustCompile(`^(10|172\.(1[6-9]|2[0-9]|3[0-1])|192.168)\..*`)
+var internalIpRegexp = regexp.MustCompile(`^(10|127|172\.(1[6-9]|2[0-9]|3[0-1])|192.168)\..*`)
 
 var regexpMethod = func(ip string) bool {
 	return internalIpRegexp.MatchString(ip)
@@ -416,115 +417,78 @@ var stringPrefix = func(ip string) bool {
 			false)
 }
 
+var dummyIPTests = []struct {
+	name string
+	ip   string
+	want bool
+}{
+	{
+		name: "10.*",
+		ip:   "10.112.1.51",
+		want: true,
+	},
+	{
+		name: "172.16.*",
+		ip:   "172.16.1.2",
+		want: true,
+	},
+	{
+		name: "172.31.*",
+		ip:   "172.31.1.2",
+		want: true,
+	},
+	{
+		name: "172.0.*",
+		ip:   "172.0.1.2",
+		want: false,
+	},
+	{
+		name: "192.168.*",
+		ip:   "192.168.1.2",
+		want: true,
+	},
+	{
+		name: "127.*",
+		ip:   "127.0.0.1",
+		want: true,
+	},
+	{
+		name: "192.0.*",
+		ip:   "192.0.1.2",
+		want: false,
+	},
+	{
+		name: "100.*",
+		ip:   "100.0.1.2",
+		want: false,
+	},
+	{
+		name: "10",
+		ip:   "10",
+		want: false,
+	},
+}
+
 func TestIpMatch(t *testing.T) {
 
-	tests := []struct {
-		name string
-		ip   string
-		want bool
-	}{
-		{
-			name: "10.*",
-			ip:   "10.112.1.51",
-			want: true,
-		},
-		{
-			name: "172.16.*",
-			ip:   "172.16.1.2",
-			want: true,
-		},
-		{
-			name: "172.31.*",
-			ip:   "172.31.1.2",
-			want: true,
-		},
-		{
-			name: "172.0.*",
-			ip:   "172.0.1.2",
-			want: false,
-		},
-		{
-			name: "192.168.*",
-			ip:   "192.168.1.2",
-			want: true,
-		},
-		{
-			name: "192.0.*",
-			ip:   "192.0.1.2",
-			want: false,
-		},
-		{
-			name: "100.*",
-			ip:   "100.0.1.2",
-			want: false,
-		},
-		{
-			name: "10",
-			ip:   "10",
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range dummyIPTests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := regexpMethod(tt.ip)
 			got2 := stringPrefix(tt.ip)
+			netIp := net.ParseIP(tt.ip)
+			parsedWant := netIp.IsPrivate()
+			loopWant := netIp.IsLoopback() || netIp.IsLinkLocalUnicast() || netIp.IsLinkLocalMulticast()
 			require.Equal(t, tt.want, got)
 			require.Equal(t, tt.want, got2)
+			require.Equal(t, tt.want, parsedWant || loopWant)
+			t.Logf("parsedWant: %v, loopWant: %v", parsedWant, loopWant)
 		})
 	}
 }
 
 func BenchmarkIpWork(b *testing.B) {
 
-	benchmarks := []struct {
-		name string
-		ip   string
-		want bool
-	}{
-		{
-			name: "10.*",
-			ip:   "10.112.1.51",
-			want: true,
-		},
-		{
-			name: "172.16.*",
-			ip:   "172.16.1.2",
-			want: true,
-		},
-		{
-			name: "172.31.*",
-			ip:   "172.31.1.2",
-			want: true,
-		},
-		{
-			name: "172.0.*",
-			ip:   "172.0.1.2",
-			want: false,
-		},
-		{
-			name: "192.168.*",
-			ip:   "192.168.1.2",
-			want: true,
-		},
-		{
-			name: "192.0.*",
-			ip:   "192.0.1.2",
-			want: false,
-		},
-		{
-			name: "100.*",
-			ip:   "100.0.1.2",
-			want: false,
-		},
-		{
-			name: "10",
-			ip:   "10",
-			want: false,
-		},
-	}
-
-	for _, bm := range benchmarks {
+	for _, bm := range dummyIPTests {
 		b.Run("regexpMethod:"+bm.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -532,11 +496,20 @@ func BenchmarkIpWork(b *testing.B) {
 			}
 		})
 	}
-	for _, bm := range benchmarks {
+	for _, bm := range dummyIPTests {
 		b.Run("stringPrefix:"+bm.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				stringPrefix(bm.ip)
+			}
+		})
+	}
+	for _, bm := range dummyIPTests {
+		b.Run("IsPrivate:"+bm.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				netIp := net.ParseIP(bm.ip)
+				_ = netIp.IsPrivate() || netIp.IsLoopback() || netIp.IsLinkLocalUnicast() || netIp.IsLinkLocalMulticast()
 			}
 		})
 	}
