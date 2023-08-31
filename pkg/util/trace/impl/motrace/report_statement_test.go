@@ -382,13 +382,38 @@ var regexpMethod = func(ip string) bool {
 	return internalIpRegexp.MatchString(ip)
 }
 
+// stringPrefix
+//
+// "127.0.0.0/8",    // IPv4 loopback
+// "10.0.0.0/8",     // RFC1918
+// "172.16.0.0/12",  // RFC1918
+// "192.168.0.0/16", // RFC1918
+// "169.254.0.0/16", // RFC3927 link-local
+// "::1/128",        // IPv6 loopback
+// "fe80::/10",      // IPv6 link-local
+// "fc00::/7",       // IPv6 unique local addr
 var stringPrefix = func(ip string) bool {
 	return len(ip) > 7 &&
-		(ip[:3] == "10." || ip[:7] == "192.168" ||
+		(
+		// IPv4 loopback: 127.0.0.0 ~ 127.255.255.255
+		ip[:4] == "127." ||
+			// 10.0.0.0 ~ 10.255.255.255
+			ip[:3] == "10." ||
+			ip[:7] == "192.168" /*192.168.0.0 ~ 192.168.255.255*/ ||
+			// 172.16.0.0 ~ 172.31.255.255
 			((ip[:6] == "172.16") || (ip[:6] == "172.17") || (ip[:6] == "172.18") || (ip[:6] == "172.19") ||
 				(ip[:6] == "172.20") || (ip[:6] == "172.21") || (ip[:6] == "172.22") || (ip[:6] == "172.23") ||
 				(ip[:6] == "172.24") || (ip[:6] == "172.25") || (ip[:6] == "172.26") || (ip[:6] == "172.27") ||
-				(ip[:6] == "172.28") || (ip[:6] == "172.29") || (ip[:6] == "172.30") || (ip[:6] == "172.31")))
+				(ip[:6] == "172.28") || (ip[:6] == "172.29") || (ip[:6] == "172.30") || (ip[:6] == "172.31")) ||
+			// Ipv6 loopback
+			ip == "::1" ||
+			// ipv6 link-local address
+			ip[:5] == "fe80:" || ip[:5] == "fe90" || ip[:5] == "fea0" || ip[:5] == "feb0" ||
+			// Unique Local Addresses - ULA
+			ip[:2] == "fc" || ip[:2] == "fd" ||
+			// IPv4 mapped IPv6 address
+			ip[:6] == "::ffff" ||
+			false)
 }
 
 func TestIpMatch(t *testing.T) {
