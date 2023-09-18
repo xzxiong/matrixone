@@ -46,6 +46,7 @@ var (
 	sesIDCol     = table.UuidStringColumn("session_id", "session uniq id")
 	accountCol   = table.StringColumn("account", "account name")
 	roleIdCol    = table.Int64Column("role_id", "role id")
+	roleCol      = table.StringColumn("role", "role name")
 	userCol      = table.StringColumn("user", "user name")
 	hostCol      = table.StringColumn("host", "user client ip")
 	dbCol        = table.StringColumn("database", "what database current session stay in.")
@@ -102,6 +103,7 @@ var (
 			sqlTypeCol,
 			aggrCntCol,
 			resultCntCol,
+			roleCol,
 		},
 		PrimaryKeyColumn: nil,
 		ClusterBy:        []table.Column{reqAtCol, accountCol},

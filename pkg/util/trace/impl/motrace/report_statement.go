@@ -149,6 +149,7 @@ type StatementInfo struct {
 	User                 string   `json:"user"`
 	Host                 string   `json:"host"`
 	RoleId               uint32   `json:"role_id"`
+	Role                 string   `json:"role"`
 	Database             string   `json:"database"`
 	Statement            string   `json:"statement"`
 	StmtBuilder          strings.Builder
@@ -283,6 +284,7 @@ func (s *StatementInfo) freeNoLocked() {
 
 func (s *StatementInfo) free() {
 	s.RoleId = 0
+	s.Role = ""
 	s.Statement = ""
 	s.StatementFingerprint = ""
 	s.StatementTag = ""
@@ -317,6 +319,7 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(sesIDCol, table.UuidField(s.SessionID[:]))
 	row.SetColumnVal(accountCol, table.StringField(s.Account))
 	row.SetColumnVal(roleIdCol, table.Int64Field(int64(s.RoleId)))
+	row.SetColumnVal(roleCol, table.StringField(s.Role))
 	row.SetColumnVal(userCol, table.StringField(s.User))
 	row.SetColumnVal(hostCol, table.StringField(s.Host))
 	row.SetColumnVal(dbCol, table.StringField(s.Database))

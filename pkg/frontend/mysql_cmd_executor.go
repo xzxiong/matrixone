@@ -266,6 +266,7 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	// END> set StatementID
 	stm.Account = tenant.GetTenant()
 	stm.RoleId = proc.SessionInfo.RoleId
+	stm.Role = proc.SessionInfo.Role
 	stm.User = tenant.GetUser()
 	stm.Host = ses.protocol.Peer()
 	stm.Database = ses.GetDatabaseName()

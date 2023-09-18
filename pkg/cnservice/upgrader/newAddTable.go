@@ -192,6 +192,7 @@ var SqlStatementHotspotView = &table.Table{
 		table.StringColumn("node", "cn node uuid"),
 		table.StringColumn("account", "account id "),
 		table.StringColumn("user", "user name"),
+		table.StringColumn("role", "role name"),
 		table.StringColumn("type", "statement type, like: [Insert, Delete, Update, Select, ...]"),
 	},
 	CreateViewSql: fmt.Sprintf(`CREATE VIEW IF NOT EXISTS system.sql_statement_hotspot AS
@@ -201,6 +202,7 @@ response_at as collecttime,
 node_uuid as node,
 account,
 user,
+role,
 statement_type as type
  from system.statement_info
  where response_at > date_sub(now(), interval 10 minute) and response_at < now()
