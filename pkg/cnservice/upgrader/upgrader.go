@@ -29,7 +29,7 @@ import (
 	"strings"
 )
 
-var registeredTable = []*table.Table{motrace.SingleRowLogTable}
+var registeredTable = []*table.Table{motrace.SingleRowLogTable, motrace.SingleStatementTable}
 
 type Upgrader struct {
 	IEFactory func() ie.InternalExecutor
