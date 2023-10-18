@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"runtime"
 	"strconv"
@@ -516,11 +517,12 @@ func logStatementStringStatus(ctx context.Context, ses *Session, stmtStr string,
 }
 
 var logger *log.MOLogger
+var loggerMap map[zapcore.Level]*log.MOLogger
 var loggerOnce sync.Once
 
-func getLogger() *log.MOLogger {
+func getLogger(level zapcore.Level) *log.MOLogger {
 	loggerOnce.Do(initLogger)
-	return logger
+	return loggerMap[level]
 }
 
 func initLogger() {
@@ -529,6 +531,10 @@ func initLogger() {
 		rt = moruntime.DefaultRuntime()
 	}
 	logger = rt.Logger().Named("frontend")
+	loggerMap = make(map[zapcore.Level]*log.MOLogger)
+	for i := zapcore.DebugLevel; i <= zapcore.FatalLevel; i++ {
+		loggerMap[i] = logger.WithOptions(zap.IncreaseLevel(i))
+	}
 }
 
 func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
@@ -547,27 +553,33 @@ func logInfo(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
 	}
-	fields = append(fields, zap.String("session_info", info))
-	fields = appendSessionField(fields, ses)
-	getLogger().Log(msg, log.DefaultLogOptions().WithLevel(zap.InfoLevel).AddCallerSkip(1), fields...)
+	if ses.level.Enabled(zap.InfoLevel) {
+		fields = append(fields, zap.String("session_info", info))
+		fields = appendSessionField(fields, ses)
+		getLogger(ses.level).Log(msg, log.DefaultLogOptions().WithLevel(zap.InfoLevel).AddCallerSkip(1), fields...)
+	}
 }
 
 func logDebug(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
 	}
-	fields = append(fields, zap.String("session_info", info))
-	fields = appendSessionField(fields, ses)
-	getLogger().Log(msg, log.DefaultLogOptions().WithLevel(zap.DebugLevel).AddCallerSkip(1), fields...)
+	if ses.level.Enabled(zap.DebugLevel) {
+		fields = append(fields, zap.String("session_info", info))
+		fields = appendSessionField(fields, ses)
+		getLogger(ses.level).Log(msg, log.DefaultLogOptions().WithLevel(zap.DebugLevel).AddCallerSkip(1), fields...)
+	}
 }
 
 func logError(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
 	}
-	fields = append(fields, zap.String("session_info", info))
-	fields = appendSessionField(fields, ses)
-	getLogger().Log(msg, log.DefaultLogOptions().WithLevel(zap.ErrorLevel).AddCallerSkip(1), fields...)
+	if ses.level.Enabled(zap.ErrorLevel) {
+		fields = append(fields, zap.String("session_info", info))
+		fields = appendSessionField(fields, ses)
+		getLogger(ses.level).Log(msg, log.DefaultLogOptions().WithLevel(zap.ErrorLevel).AddCallerSkip(1), fields...)
+	}
 }
 
 // todo: remove this function after all the logDebugf are replaced by logDebug

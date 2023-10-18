@@ -28,6 +28,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/common/buffer"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
+	morun "github.com/matrixorigin/matrixone/pkg/common/runtime"
 	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/container/batch"
 	"github.com/matrixorigin/matrixone/pkg/defines"
@@ -47,6 +48,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/vm/engine"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/memoryengine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
+	"go.uber.org/zap/zapcore"
 )
 
 var MaxPrepareNumberInOneSession int = 100000
@@ -245,6 +247,8 @@ type Session struct {
 	buf *buffer.Buffer
 
 	stmtProfile process.StmtProfile
+
+	level zapcore.Level
 }
 
 func (ses *Session) ClearStmtProfile() {
@@ -480,6 +484,10 @@ func NewSession(proto Protocol, mp *mpool.MPool, pu *config.ParameterUnit,
 		txnCtx, txnOp = sharedTxnHandler.GetTxnOperator()
 	}
 	txnHandler := InitTxnHandler(pu.StorageEngine, pu.TxnClient, txnCtx, txnOp)
+	level, ok := morun.DefaultRuntime().GetGlobalVariables("logLevel")
+	if !ok {
+		level = zapcore.InfoLevel
+	}
 
 	ses := &Session{
 		protocol:   proto,
@@ -506,6 +514,7 @@ func NewSession(proto Protocol, mp *mpool.MPool, pu *config.ParameterUnit,
 		planCache: newPlanCache(100),
 		startedAt: time.Now(),
 		connType:  ConnTypeUnset,
+		level:     level.(zapcore.Level),
 	}
 	if isNotBackgroundSession {
 		ses.sysVars = gSysVars.CopySysVarsToSession()

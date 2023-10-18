@@ -54,6 +54,9 @@ func setupProcessLevelRuntime(cfg *Config, stopper *stopper.Stopper) error {
 			e = err
 			return
 		}
+		level := zap.NewAtomicLevel()
+		level.UnmarshalText([]byte(cfg.Log.Level))
+		r.SetGlobalVariables("logLevel", level.Level())
 		runtime.SetupProcessLevelRuntime(r)
 	})
 	return e
