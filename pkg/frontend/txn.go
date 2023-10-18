@@ -147,6 +147,8 @@ func (th *TxnHandler) NewTxnOperator() (context.Context, TxnOperator, error) {
 	}
 	opts = append(opts,
 		client.WithTxnCreateBy(fmt.Sprintf("frontend-session-%p", th.ses)))
+	opts = append(opts,
+		client.WithLogLevel(&th.ses.level))
 
 	if th.ses != nil && th.ses.GetFromRealUser() {
 		opts = append(opts,

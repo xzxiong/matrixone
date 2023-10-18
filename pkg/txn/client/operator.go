@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"go.uber.org/zap/zapcore"
 	gotrace "runtime/trace"
 	"sync"
 	"time"
@@ -150,6 +151,12 @@ func WithTxnIsolation(value txn.TxnIsolation) TxnOption {
 	}
 }
 
+func WithLogLevel(level *zapcore.Level) TxnOption {
+	return func(tc *txnOperator) {
+		tc.level = level
+	}
+}
+
 type txnOperator struct {
 	sender rpc.TxnSender
 	waiter *waiter
@@ -182,6 +189,7 @@ type txnOperator struct {
 	timestampWaiter TimestampWaiter
 	clock           clock.Clock
 	createAt        time.Time
+	level           *zapcore.Level
 }
 
 func newTxnOperator(
