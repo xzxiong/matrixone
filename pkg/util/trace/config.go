@@ -251,7 +251,14 @@ type SpanConfig struct {
 	// It will override Span ctx deadline setting, and start a goroutine to check ctx deadline
 	hungThreshold time.Duration
 	Extra         []zap.Field `json:"-"`
+
+	// flag save MetricCollectionFlag, set by WithMetricCollection, get by MetricCollection
+	flag int64
 }
+
+const (
+	MetricCollectionFlag = 1 << iota
+)
 
 const (
 	ProfileFlagGoroutine = 1 << iota
@@ -323,6 +330,10 @@ func (c *SpanConfig) ProfileCpuSecs() time.Duration {
 // ProfileTraceSecs return the value set by WithProfileTraceSecs
 func (c *SpanConfig) ProfileTraceSecs() time.Duration {
 	return c.profileTraceDur
+}
+
+func (c *SpanConfig) MetricCollection() bool {
+	return c.flag&MetricCollectionFlag > 0
 }
 
 // SpanStartOption applies an option to a SpanConfig. These options are applicable
@@ -443,6 +454,12 @@ func WithProfileTraceSecs(d time.Duration) SpanStartOption {
 	return spanOptionFunc(func(cfg *SpanConfig) {
 		cfg.profileFlag |= ProfileFlagTrace
 		cfg.profileTraceDur = d
+	})
+}
+
+func WithMetricCollection() SpanStartOption {
+	return spanOptionFunc(func(cfg *SpanConfig) {
+		cfg.flag |= MetricCollectionFlag
 	})
 }
 

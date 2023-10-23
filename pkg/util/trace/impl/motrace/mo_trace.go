@@ -33,6 +33,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+	mtrace "github.com/matrixorigin/matrixone/pkg/util/metric/trace"
 	"github.com/matrixorigin/matrixone/pkg/util/profile"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 
@@ -79,6 +80,10 @@ func (t *MOTracer) Start(ctx context.Context, name string, opts ...trace.SpanSta
 	if end != nil {
 		// Tips: check the BenchmarkMOSpan_if_vs_for result
 		span.onEnd = append(span.onEnd, end)
+	}
+	// implement WithMetricCollection() SpanOption
+	if span.MetricCollection() {
+		span.onEnd = append(span.onEnd, getCollectMetricFunc(span))
 	}
 
 	span.tracer = t
@@ -453,4 +458,12 @@ func getEncoder() zapcore.Encoder {
 		})
 	})
 	return jsonEncoder.Clone()
+}
+
+func getCollectMetricFunc(s *MOSpan) func() {
+	return func() {
+		val := s.Duration.Seconds()
+		mtrace.GetMOSpanLatencyHistogram(s.Name).Observe(val)
+		mtrace.GetMOSpanLatencySum(s.Name).Add(val)
+	}
 }

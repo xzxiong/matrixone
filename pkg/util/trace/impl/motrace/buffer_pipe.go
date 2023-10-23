@@ -92,7 +92,7 @@ func (t batchETLHandler) NewItemBatchHandler(ctx context.Context) func(b any) {
 	}
 
 	var f = func(batch any) {
-		_, span := trace.Start(DefaultContext(), "batchETLHandler")
+		_, span := trace.Start(DefaultContext(), "batchETLHandler", trace.WithMetricCollection(), trace.WithLongTimeThreshold(time.Hour))
 		defer span.End()
 		switch b := batch.(type) {
 		case table.WriteRequest:
@@ -302,7 +302,7 @@ func (b *itemBuffer) GetBufferType() string {
 }
 
 func (b *itemBuffer) GetBatch(ctx context.Context, buf *bytes.Buffer) any {
-	ctx, span := trace.Start(ctx, "GenBatch")
+	ctx, span := trace.Start(ctx, "GenBatch", trace.WithMetricCollection(), trace.WithLongTimeThreshold(time.Hour))
 	defer span.End()
 	b.mux.Lock()
 	defer b.mux.Unlock()
