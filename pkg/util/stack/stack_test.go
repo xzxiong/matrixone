@@ -63,3 +63,70 @@ func TestCallers(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkNamed(b *testing.B) {
+	type args struct {
+		depth int
+	}
+	tests := []struct {
+		name   string
+		args   args
+		action func(depth int)
+	}{
+		{
+			name: "caller",
+			args: args{
+				depth: 2,
+			},
+			action: func(depth int) {
+				Caller(depth)
+			},
+		},
+		{
+			name: "caller_marshalText",
+			args: args{
+				depth: 2,
+			},
+			action: func(depth int) {
+				_, _ = Caller(depth).MarshalText()
+			},
+		},
+		{
+			name: "caller_fmt",
+			args: args{
+				depth: 2,
+			},
+			action: func(depth int) {
+				_ = fmt.Sprintf("%v", Caller(depth))
+			},
+		},
+		{
+			name: "callers",
+			args: args{
+				depth: 2,
+			},
+			action: func(depth int) {
+				Callers(depth)
+			},
+		},
+		{
+			name: "callers_fmt",
+			args: args{
+				depth: 2,
+			},
+			action: func(depth int) {
+				_ = fmt.Sprintf("%+v", Callers(depth))
+			},
+		},
+	}
+
+	for _, bb := range tests {
+
+		b.Run(bb.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				bb.action(bb.args.depth)
+			}
+		})
+	}
+}
