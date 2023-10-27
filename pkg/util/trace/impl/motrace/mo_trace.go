@@ -464,6 +464,5 @@ func getCollectMetricFunc(s *MOSpan) func() {
 	return func() {
 		val := s.Duration.Seconds()
 		mtrace.GetMOSpanLatencyHistogram(s.Name).Observe(val)
-		mtrace.GetMOSpanLatencySum(s.Name).Add(val)
 	}
 }

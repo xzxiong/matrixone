@@ -27,20 +27,8 @@ var (
 			Help:      "Bucketed histogram of trace span latency (sec)",
 			Buckets:   prometheus.ExponentialBuckets(0.0005, 2.0, 20),
 		}, []string{"name"})
-
-	MOSpanLatencySum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "mo",
-			Subsystem: "span",
-			Name:      "latency_sum",
-			Help:      "sum of trace span latency, cooperate with Histogram (sec)",
-		}, []string{"name"})
 )
 
 func GetMOSpanLatencyHistogram(n string) prometheus.Observer {
 	return MOSpanLatencyHistogram.WithLabelValues(n)
-}
-
-func GetMOSpanLatencySum(n string) prometheus.Counter {
-	return MOSpanLatencySum.WithLabelValues(n)
 }
