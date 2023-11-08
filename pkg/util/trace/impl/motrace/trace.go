@@ -23,6 +23,7 @@ package motrace
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"sync/atomic"
 	"time"
 
@@ -136,7 +137,19 @@ func initExporter(ctx context.Context, config *tracerProviderConfig) error {
 	// init BatchProcess for trace/log/error
 	p.Register(&MOSpan{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	p.Register(&MOZapLog{}, NewBufferPipe2CSVWorker(defaultOptions...))
-	p.Register(&StatementInfo{}, NewBufferPipe2CSVWorker(defaultOptions...))
+	opts := make([]BufferOption, 0, 3)
+	opts = append(opts, defaultOptions...)
+	opts = append(opts, BufferWithFilterItemFunc(func(item IBuffer2SqlItem) {
+		i, _ := item.(*StatementInfo)
+		id := uuid.UUID(i.StatementID).String()
+		if _, exist := stmtKeyCheck[id]; exist {
+			logutil.Infof("statement: %v", i)
+			logutil.Fatalf("statement id %s exec double exported", id)
+		} else {
+			stmtKeyCheck[id] = struct{}{}
+		}
+	}))
+	p.Register(&StatementInfo{}, NewBufferPipe2CSVWorker(opts...))
 	p.Register(&MOErrorHolder{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	logutil.Info("init GlobalBatchProcessor")
 	if !p.Start() {
@@ -146,6 +159,8 @@ func initExporter(ctx context.Context, config *tracerProviderConfig) error {
 	logutil.Info("init trace span processor")
 	return nil
 }
+
+var stmtKeyCheck = make(map[string]struct{}, 1<<20)
 
 // InitSchema
 // PS: only in standalone or CN node can init schema
