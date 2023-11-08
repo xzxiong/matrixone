@@ -148,10 +148,6 @@ func initExporter(ctx context.Context, config *tracerProviderConfig) error {
 		} else {
 			stmtKeyCheck[id] = struct{}{}
 		}
-		if time.Now().After(nextCleanTime) {
-			stmtKeyCheck = make(map[string]struct{}, 102400)
-			nextCleanTime = getNextClean()
-		}
 	}))
 	p.Register(&StatementInfo{}, NewBufferPipe2CSVWorker(opts...))
 	p.Register(&MOErrorHolder{}, NewBufferPipe2CSVWorker(defaultOptions...))
@@ -164,12 +160,7 @@ func initExporter(ctx context.Context, config *tracerProviderConfig) error {
 	return nil
 }
 
-var stmtKeyCheck = make(map[string]struct{}, 102400)
-var nextCleanTime = getNextClean()
-
-func getNextClean() time.Time {
-	return time.Now().Add(time.Minute)
-}
+var stmtKeyCheck = make(map[string]struct{}, 1<<20)
 
 // InitSchema
 // PS: only in standalone or CN node can init schema
