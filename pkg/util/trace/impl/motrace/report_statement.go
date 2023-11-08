@@ -403,6 +403,13 @@ endL:
 	return s.jsonByte
 }
 
+var stmtKeyCheck = make(map[string]struct{}, 102400)
+var nextCleanTime = getNextClean()
+
+func getNextClean() time.Time {
+	return time.Now().Add(time.Minute)
+}
+
 // ExecPlan2Stats return Stats Serialized int array str
 // and set RowsRead, BytesScan from ExecPlan
 func (s *StatementInfo) ExecPlan2Stats(ctx context.Context) []byte {
@@ -418,9 +425,26 @@ func (s *StatementInfo) ExecPlan2Stats(ctx context.Context) []byte {
 		statsArray, stats = s.ExecPlan.Stats(ctx)
 		s.statsArray.InitIfEmpty().Add(&statsArray)
 		s.statsArray.WithConnType(s.ConnType)
+
+		s.doCheckKey()
+
 		s.RowsRead = stats.RowsRead
 		s.BytesScan = stats.BytesScan
 		return s.statsArray.ToJsonString()
+	}
+}
+
+func (s *StatementInfo) doCheckKey() {
+	id := uuid.UUID(s.StatementID).String()
+	if _, exist := stmtKeyCheck[id]; exist {
+		logutil.Infof("statement: %v", s)
+		logutil.Fatalf("statement id %s exec double exported", id)
+	} else {
+		stmtKeyCheck[id] = struct{}{}
+	}
+	if time.Now().After(nextCleanTime) {
+		stmtKeyCheck = make(map[string]struct{}, 102400)
+		nextCleanTime = getNextClean()
 	}
 }
 
