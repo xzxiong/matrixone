@@ -526,6 +526,8 @@ type StatementOption interface {
 
 type StatementOptionFunc func(*StatementInfo)
 
+const sysAccount = "sys"
+
 var ReportStatement = func(ctx context.Context, s *StatementInfo) error {
 	if !GetTracerProvider().IsEnable() {
 		return nil
@@ -535,12 +537,12 @@ var ReportStatement = func(ctx context.Context, s *StatementInfo) error {
 		return nil
 	}
 	// Filter out the MO_LOGGER SQL statements
-	if s.User == db_holder.MOLoggerUser {
+	if s.User == db_holder.MOLoggerUser && s.Account == sysAccount {
 		goto DiscardAndFreeL
 	}
 	// Filter out part of the internal SQL statements
 	// Todo: review how to aggregate the internal SQL statements logging
-	if s.User == "internal" {
+	if s.User == "internal" && s.Account == sysAccount {
 		if s.StatementType == "Commit" || s.StatementType == "Start Transaction" || s.StatementType == "Use" {
 			goto DiscardAndFreeL
 		}
