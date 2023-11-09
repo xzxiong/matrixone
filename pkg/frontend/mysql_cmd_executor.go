@@ -256,6 +256,10 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		tenant, _ = GetTenantInfo(ctx, "internal")
 	}
 	stm := motrace.NewStatementInfo()
+	if !stm.ResponseAt.IsZero() {
+		logutil.Errorf("id: %s, req: %s, resp: %s",
+			uuid.UUID(stm.StatementID).String(), motrace.Time2DatetimeString(stm.RequestAt), motrace.Time2DatetimeString(stm.ResponseAt))
+	}
 	// set TransactionID
 	var txn TxnOperator
 	var err error
