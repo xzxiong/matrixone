@@ -361,6 +361,8 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(queryTypeCol, table.StringField(s.QueryType))
 	row.SetColumnVal(aggrCntCol, table.Int64Field(s.AggrCount))
 	row.SetColumnVal(resultCntCol, table.Int64Field(s.ResultCount))
+	logutil.Infof("id: %s, req: %s, resp: %s",
+		uuid.UUID(s.StatementID).String(), Time2DatetimeString(s.RequestAt), Time2DatetimeString(s.ResponseAt))
 }
 
 // calculateAggrMemoryBytes return scale = statistic.Decimal128ToFloat64Scale float64 val
