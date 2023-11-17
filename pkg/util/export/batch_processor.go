@@ -487,7 +487,8 @@ loop:
 				c.logger.Debug("doCollect: init buffer", zap.Int("idx", idx), zap.String("item", i.GetName()))
 				c.mux.RUnlock()
 				c.mux.Lock()
-				if _, has := c.buffers[i.GetName()]; !has {
+				// double check exist.
+				if bufNew, has := c.buffers[i.GetName()]; !has {
 					c.logger.Debug("doCollect: init buffer done.", zap.Int("idx", idx))
 					if impl, has := c.pipeImplHolder.Get(i.GetName()); !has {
 						c.logger.Panic("unknown item type", zap.String("item", i.GetName()))
@@ -497,6 +498,8 @@ loop:
 						buf.Add(i)
 						buf.Start()
 					}
+				} else {
+					bufNew.Add(i)
 				}
 				c.mux.Unlock()
 			} else {
