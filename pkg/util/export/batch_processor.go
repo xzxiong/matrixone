@@ -317,43 +317,26 @@ const maxPercentValue = 1000
 // | 50   | 5.0       | 1            | 1            | 4           |
 // | 60   | 6.0       | 1            | 2            | 5           |
 func (c *MOCollector) calculateDefaultWorker(numCpu int) {
-	var totalNum = math.Ceil(float64(numCpu) * 0.1)
-	unit := float64(totalNum) / (100.0)
-	// set default value if non-set
-	c.collectorCnt = int(math.Round(unit * float64(c.collectorCntP)))
-	c.generatorCnt = int(math.Round(unit * float64(c.generatorCntP)))
-	c.exporterCnt = int(math.Round(unit * float64(c.exporterCntP)))
-	if c.collectorCnt <= 0 {
-		c.collectorCnt = 1
-	}
-	if c.generatorCnt <= 0 {
-		c.generatorCnt = 1
-	}
-	if c.exporterCnt <= 0 {
-		c.exporterCnt = 1
-	}
+	var calculate = func(percent int) (workerCnt int) {
+		// check disable calculation
+		if percent >= maxPercentValue {
+			return numCpu
+		}
 
-	// check max value < numCpu
-	if c.collectorCnt > numCpu {
-		c.collectorCnt = numCpu
+		var totalNum = math.Ceil(float64(numCpu) * 0.1)
+		workerCnt = int(math.Round(totalNum * float64(percent) / 100.0))
+		if workerCnt <= 0 {
+			workerCnt = 1
+		}
+		// check max value < numCpu
+		if workerCnt > numCpu {
+			workerCnt = numCpu
+		}
+		return
 	}
-	if c.generatorCnt > numCpu {
-		c.generatorCnt = numCpu
-	}
-	if c.exporterCnt > numCpu {
-		c.exporterCnt = numCpu
-	}
-
-	// last check: disable calculation
-	if c.collectorCnt >= maxPercentValue {
-		c.collectorCnt = numCpu
-	}
-	if c.generatorCntP >= maxPercentValue {
-		c.generatorCnt = numCpu
-	}
-	if c.exporterCnt >= maxPercentValue {
-		c.generatorCnt = numCpu
-	}
+	c.collectorCnt = calculate(c.collectorCntP)
+	c.generatorCnt = calculate(c.generatorCntP)
+	c.exporterCnt = calculate(c.exporterCntP)
 }
 
 func WithCollectorCntP(p int) MOCollectorOption {
