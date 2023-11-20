@@ -401,6 +401,7 @@ func (c *MOCollector) DiscardableCollect(ctx context.Context, item batchpipe.Has
 	case c.awakeCollect <- item:
 		return nil
 	case <-time.After(discardCollectTimeout):
+		// TODO: need to free or mark `synced` the item
 		return nil
 	}
 }
