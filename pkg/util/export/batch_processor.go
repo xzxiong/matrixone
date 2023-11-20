@@ -105,9 +105,6 @@ func (b *bufferHolder) Start() {
 	b.stopped = false
 	b.trigger.Stop()
 	b.trigger = time.AfterFunc(b.reminder.RemindNextAfter(), func() {
-		if b.mux.TryLock() {
-			b.mux.Unlock()
-		}
 		b.signal(b)
 	})
 }
