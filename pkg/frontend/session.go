@@ -671,6 +671,8 @@ func NewBackgroundSession(reqCtx context.Context, upstream *Session, mp *mpool.M
 	ses.upstream = upstream
 	ses.SetOutputCallback(fakeDataSetFetcher)
 	if stmt := motrace.StatementFromContext(reqCtx); stmt != nil {
+		// use frontend statement id as the background statement uuid
+		ses.uuid = uuid.UUID(stmt.StatementID)
 		logutil.Debugf("session uuid: %s -> background session uuid: %s", uuid.UUID(stmt.SessionID).String(), ses.uuid.String())
 	}
 	cancelBackgroundCtx, cancelBackgroundFunc := context.WithCancel(reqCtx)
