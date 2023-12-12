@@ -2860,7 +2860,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 			return err
 		}
 	case *tree.RollbackTransaction:
-		err = ses.TxnRollback()
+		err = ses.TxnRollback("sql")
 		if err != nil {
 			return err
 		}

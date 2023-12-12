@@ -58,7 +58,7 @@ type RollbackTxnExecutor struct {
 }
 
 func (rte *RollbackTxnExecutor) ExecuteImpl(ctx context.Context, ses *Session) error {
-	return ses.TxnRollback()
+	return ses.TxnRollback("executor")
 }
 
 type SetRoleExecutor struct {

@@ -344,7 +344,7 @@ func (th *TxnHandler) CommitTxn() error {
 	return err
 }
 
-func (th *TxnHandler) RollbackTxn() error {
+func (th *TxnHandler) RollbackTxn(action ...string) error {
 	_, span := trace.Start(th.ses.requestCtx, "TxnHandler.RollbackTxn",
 		trace.WithKind(trace.SpanKindStatement))
 	defer span.End(trace.WithStatementExtra(th.ses.GetTxnId(), th.ses.GetStmtId(), th.ses.GetSqlOfStmt()))
@@ -384,7 +384,7 @@ func (th *TxnHandler) RollbackTxn() error {
 			logutil.Warnf("txn: nil")
 		} else {
 			txnID := uuid.UUID(txnOp.Txn().ID).String()
-			logutil.Warnf("txn: %s", txnID)
+			logutil.Warnf("txn: %s, case: %s", txnID, action)
 			logutil.Warnf("stmt: %s, txn-id: %s", ses.sql, txnID)
 		}
 		incTransactionErrorsCounter(tenant, metric.SQLTypeOther) // exec rollback cnt
@@ -610,10 +610,10 @@ func (ses *Session) TxnCommit() error {
 }
 
 // TxnRollback rollbacks the current transaction.
-func (ses *Session) TxnRollback() error {
+func (ses *Session) TxnRollback(action string) error {
 	var err error
 	ses.ClearServerStatus(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY)
-	err = ses.GetTxnHandler().RollbackTxn()
+	err = ses.GetTxnHandler().RollbackTxn(action)
 	ses.ClearOptionBits(OPTION_BEGIN)
 	return err
 }
@@ -689,7 +689,7 @@ func (ses *Session) TxnRollbackSingleStatement(stmt tree.Statement) error {
 	*/
 	if !ses.InMultiStmtTransactionMode() ||
 		ses.InActiveTransaction() {
-		err = ses.GetTxnHandler().RollbackTxn()
+		err = ses.GetTxnHandler().RollbackTxn("auto")
 		ses.ClearServerStatus(SERVER_STATUS_IN_TRANS)
 		ses.ClearOptionBits(OPTION_BEGIN)
 	}
