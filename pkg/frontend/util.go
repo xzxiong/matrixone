@@ -509,6 +509,7 @@ func logStatementStringStatus(ctx context.Context, ses *Session, stmtStr string,
 	} else {
 		logError(ses, ses.GetDebugString(), "query trace status", logutil.ConnectionIdField(ses.GetConnectionID()), logutil.StatementField(str), logutil.StatusField(status.String()), logutil.ErrorField(err), trace.ContextField(ctx))
 	}
+	motrace.SetEndSequenceId(ctx, ses.protocol.GetSequenceId())
 	// pls make sure: NO ONE use the ses.tStmt after EndStatement
 	motrace.EndStatement(ctx, err, ses.sentRows.Load(), outBytes)
 	// need just below EndStatement

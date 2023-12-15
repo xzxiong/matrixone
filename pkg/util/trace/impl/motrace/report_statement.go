@@ -234,6 +234,8 @@ type StatementInfo struct {
 	// keep []byte as elem
 	jsonByte   []byte
 	statsArray statistic.StatsArray
+	// calculate out packet num
+	StartSeqId uint8
 
 	// skipTxnOnce, readonly, for flow control
 	// see more on NeedSkipTxn() and SkipTxnId()
@@ -580,6 +582,19 @@ var EndStatement = func(ctx context.Context, err error, sentRows int64, outBytes
 			s.Report(ctx)
 		}
 	}
+}
+
+var SetEndSequenceId = func(ctx context.Context, seqId uint8) {
+	if !GetTracerProvider().IsEnable() {
+		return
+	}
+	s := StatementFromContext(ctx)
+	if s == nil {
+		panic(moerr.NewInternalError(ctx, "no statement info in context"))
+	}
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.statsArray.WithOutPacketCount(float64(seqId - s.StartSeqId))
 }
 
 type StatementInfoStatus int

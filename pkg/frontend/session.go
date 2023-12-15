@@ -76,6 +76,8 @@ type Session struct {
 	//protocol layer
 	protocol Protocol
 
+	lastGetSequenceId uint8
+
 	//cmd from the client
 	cmd CommandType
 
