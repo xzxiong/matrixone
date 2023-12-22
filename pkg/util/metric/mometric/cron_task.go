@@ -95,10 +95,7 @@ func RunBackgroundStorageTask(ctx context.Context) (err error) {
 			}
 		} else {
 			logutil.Infof("RunBackgroundStorageTask start")
-			ctx, cancel := context.WithCancel(ctx)
 			err = CalculateStorageUsage(ctx, gSqlExecutor)
-			metric.StorageUsageFactory.Reset() // clean CN data for next cron task.
-			cancel()
 			return err
 		}
 	}
@@ -134,10 +131,13 @@ func GetUpdateStorageUsageInterval() time.Duration {
 func CalculateStorageUsage(ctx context.Context, sqlExecutor func() ie.InternalExecutor) (err error) {
 	ctx, span := trace.Start(ctx, "MetricStorageUsage")
 	defer span.End()
+	ctx, cancel := context.WithCancel(ctx)
 	logger := runtime.ProcessLevelRuntime().Logger().WithContext(ctx).Named(LoggerNameMetricStorage)
 	logger.Info("started")
 	defer func() {
 		logger.Info("finished", zap.Error(err))
+		metric.StorageUsageFactory.Reset() // clean CN data for next cron task.
+		cancel()
 	}()
 
 	// start background task to check new account
@@ -151,7 +151,6 @@ func CalculateStorageUsage(ctx context.Context, sqlExecutor func() ie.InternalEx
 		select {
 		case <-ctx.Done():
 			logger.Debug("receive context signal", zap.Error(ctx.Err()))
-			metric.StorageUsageFactory.Reset() // clean CN data for next cron task.
 			return ctx.Err()
 		case <-ticker.C:
 			logger.Info("start next round")
