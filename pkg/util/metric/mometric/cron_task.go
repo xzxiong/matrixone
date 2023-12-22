@@ -27,6 +27,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/metric"
 
 	"github.com/matrixorigin/matrixone/pkg/common/runtime"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/pb/task"
 	"github.com/matrixorigin/matrixone/pkg/taskservice"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
@@ -69,10 +70,37 @@ func CreateCronTask(ctx context.Context, executorID task.TaskCode, taskService t
 	return nil
 }
 
+var gSqlExecutor func() ie.InternalExecutor = nil
+
 // GetMetricStorageUsageExecutor collect metric server_storage_usage
 func GetMetricStorageUsageExecutor(sqlExecutor func() ie.InternalExecutor) func(ctx context.Context, task task.Task) error {
+	gSqlExecutor = sqlExecutor
 	return func(ctx context.Context, task task.Task) error {
 		return CalculateStorageUsage(ctx, sqlExecutor)
+	}
+}
+
+func RunBackgroundStorageTask(ctx context.Context) (err error) {
+	interval := 10 * time.Second
+	trigger := time.NewTicker(interval)
+	for {
+		if gSqlExecutor == nil {
+			logutil.Infof("RunBackgroundStorageTask wait next interval: %v", interval)
+			select {
+			case <-ctx.Done():
+				logutil.Infof("RunBackgroundStorageTask got ctx.Err: %v", ctx.Err())
+				return ctx.Err()
+			case <-trigger.C:
+				trigger.Reset(interval)
+			}
+		} else {
+			logutil.Infof("RunBackgroundStorageTask start")
+			ctx, cancel := context.WithCancel(ctx)
+			err = CalculateStorageUsage(ctx, gSqlExecutor)
+			metric.StorageUsageFactory.Reset() // clean CN data for next cron task.
+			cancel()
+			return err
+		}
 	}
 }
 

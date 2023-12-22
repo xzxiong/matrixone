@@ -32,6 +32,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/batchpipe"
 	"github.com/matrixorigin/matrixone/pkg/util/errutil"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
+	"github.com/matrixorigin/matrixone/pkg/util/metric/mometric"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 )
 
@@ -64,6 +65,7 @@ func InitWithConfig(ctx context.Context, SV *config.ObservabilityParameters, opt
 		WithAggregatorWindow(SV.AggregationWindow.Duration),
 		WithSelectThreshold(SV.SelectAggrThreshold.Duration),
 		WithStmtMergeEnable(SV.EnableStmtMerge),
+		WithBackgroundStorageTask(SV.EnableBackgroundStorageTask),
 
 		DebugMode(SV.EnableTraceDebug),
 		WithBufferSizeThreshold(SV.BufferSize),
@@ -117,6 +119,25 @@ func Init(ctx context.Context, opts ...TracerProviderOption) (err error, act boo
 	logutil.Debugf("trace with LongQueryTime: %v", time.Duration(GetTracerProvider().longQueryTime))
 	logutil.Debugf("trace with LongSpanTime: %v", GetTracerProvider().longSpanTime)
 	logutil.Debugf("trace with DisableSpan: %v", GetTracerProvider().disableSpan)
+
+	if config.enableBackgroundStorageTask {
+		go func() {
+			logutil.Warnf("trace with EnableBackgroundStorageTask: %v", GetTracerProvider().enableBackgroundStorageTask)
+			for {
+				logutil.Info("BackgroundStorageTask go")
+				err := mometric.RunBackgroundStorageTask(ctx)
+				if ctx.Err() != nil {
+					logutil.Infof("BackgroundStorageTask exit with ctx.Err: %v", ctx.Err())
+					return
+				}
+				if err != nil {
+					// if err, go panic.
+					logutil.Panicf("BackgroundStorageTask got err: %s", err)
+				}
+				logutil.Infof("BackgroundStorageTask go rerun")
+			}
+		}()
+	}
 
 	return nil, true
 }

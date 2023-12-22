@@ -68,6 +68,8 @@ type tracerProviderConfig struct {
 	aggregationWindow      time.Duration // WithAggregationWindow
 	selectAggrThreshold    time.Duration // WithSelectThreshold
 
+	enableBackgroundStorageTask bool // set by WithBackgroundStorageTask
+
 	sqlExecutor func() ie.InternalExecutor // WithSQLExecutor
 	// needInit control table schema create
 	needInit bool // WithInitAction
@@ -197,6 +199,12 @@ func WithAggregatorDisable(disable bool) tracerProviderOption {
 func WithStmtMergeEnable(enable bool) tracerProviderOption {
 	return func(cfg *tracerProviderConfig) {
 		cfg.enableStmtMerge = enable
+	}
+}
+
+func WithBackgroundStorageTask(enable bool) tracerProviderOption {
+	return func(cfg *tracerProviderConfig) {
+		cfg.enableBackgroundStorageTask = enable
 	}
 }
 

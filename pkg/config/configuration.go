@@ -522,6 +522,9 @@ type ObservabilityParameters struct {
 	// Disable merge statements
 	EnableStmtMerge bool `toml:"enableStmtMerge"`
 
+	// EnableBackgroundStorageTask
+	EnableBackgroundStorageTask bool `toml:"enableBackgroundStorageTask"`
+
 	OBCollectorConfig
 }
 
