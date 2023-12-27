@@ -224,6 +224,8 @@ func transferSessionConnType2StatisticConnType(c ConnType) statistic.ConnType {
 	}
 }
 
+// RecordStatement cooperate with EndStatement, one mark start, one mark end.
+// RecordStatement will reset ses.tStmt.
 var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Process, cw ComputationWrapper, envBegin time.Time, envStmt, sqlType string, useEnv bool) context.Context {
 	// set StatementID
 	var stmID uuid.UUID
@@ -310,6 +312,17 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	return motrace.ContextWithStatement(ctx, stm)
 }
 
+// EndStatement cooperate with RecordStatement, one mark start, one mark end.
+// EndStatement will nil the ses.tStmt
+// PS: pls make sure NO ONE use the ses.tStmt after this function.
+func EndStatement(ctx context.Context, ses *Session, err error) {
+	outBytes, outPacket := ses.GetMysqlProtocol().CalculateOutTrafficBytes(true)
+	// pls make sure: NO ONE use the ses.tStmt after EndStatement
+	motrace.EndStatement(ctx, err, ses.sentRows.Load(), outBytes, outPacket)
+	// need just below EndStatement
+	ses.SetTStmt(nil)
+}
+
 var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *process.Process, envBegin time.Time,
 	envStmt []string, sqlTypes []string, err error) context.Context {
 	retErr := moerr.NewParseError(ctx, err.Error())
@@ -329,11 +342,11 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 				sqlType = sqlTypes[i]
 			}
 			ctx = RecordStatement(ctx, ses, proc, nil, envBegin, sql, sqlType, true)
-			motrace.EndStatement(ctx, retErr, 0, 0)
+			EndStatement(ctx, ses, retErr)
 		}
 	} else {
 		ctx = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true)
-		motrace.EndStatement(ctx, retErr, 0, 0)
+		EndStatement(ctx, ses, retErr)
 	}
 
 	tenant := ses.GetTenantInfo()
@@ -2539,6 +2552,7 @@ func (mce *MysqlCmdExecutor) processLoadLocal(ctx context.Context, param *tree.E
 	if length == 0 {
 		return
 	}
+	ses.CountPayload(len(packet.Payload))
 
 	skipWrite := false
 	// If inner error occurs(unexpected or expected(ctrl-c)), proc.LoadLocalReader will be closed.
@@ -2582,6 +2596,7 @@ func (mce *MysqlCmdExecutor) processLoadLocal(ctx context.Context, param *tree.E
 		}
 		seq = uint8(packet.SequenceID + 1)
 		proto.SetSequenceID(seq)
+		ses.CountPayload(len(packet.Payload))
 
 		writeStart := time.Now()
 		if !skipWrite {
