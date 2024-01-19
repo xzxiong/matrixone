@@ -370,7 +370,11 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 var RecordStatementTxnID = func(ctx context.Context, ses *Session) error {
 	var txn TxnOperator
 	var err error
-	if stm := ses.tStmt; ses != nil && stm != nil && stm.IsZeroTxnID() {
+	if ses == nil {
+		return nil
+	}
+
+	if stm := ses.tStmt; stm != nil && stm.IsZeroTxnID() {
 		if handler := ses.GetTxnHandler(); handler.IsValidTxnOperator() {
 			// simplify the logic of TxnOperator. refer to https://github.com/matrixorigin/matrixone/pull/13436#pullrequestreview-1779063200
 			_, txn, err = handler.GetTxnOperator()
