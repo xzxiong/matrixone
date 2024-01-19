@@ -580,6 +580,9 @@ var EndStatement = func(ctx context.Context, s *StatementInfo, err error, sentRo
 	if !GetTracerProvider().IsEnable() {
 		return
 	}
+	if s == nil {
+		return
+	}
 
 	s.mux.Lock()
 	defer s.mux.Unlock()
