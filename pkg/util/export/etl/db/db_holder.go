@@ -39,7 +39,9 @@ var (
 	sqlWriterDBUser atomic.Value
 	dbAddressFunc   atomic.Value
 
-	db atomic.Value
+	db        atomic.Value
+	dbAddress string
+	dbTicker  time.Ticker
 
 	dbMux sync.Mutex
 
@@ -80,8 +82,11 @@ func SetSQLWriterDBAddressFunc(f func(context.Context, bool) (string, error)) {
 func GetSQLWriterDBAddressFunc() func(context.Context, bool) (string, error) {
 	return dbAddressFunc.Load().(func(context.Context, bool) (string, error))
 }
-func SetDBConn(conn *sql.DB) {
+
+func SetDBConn(conn *sql.DB, addr string) {
 	db.Store(conn)
+	dbAddress = addr
+	dbTicker.Reset(time.Hour)
 }
 
 func CloseDBConn() {
@@ -127,7 +132,7 @@ func GetOrInitDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
 		newDBConn.SetConnMaxLifetime(45 * time.Second)
 		newDBConn.SetMaxOpenConns(MaxConnectionNumber)
 		newDBConn.SetMaxIdleConns(MaxConnectionNumber)
-		SetDBConn(newDBConn)
+		SetDBConn(newDBConn, dbAddress)
 		return nil
 	}
 
