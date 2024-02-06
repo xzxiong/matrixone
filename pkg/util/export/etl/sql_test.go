@@ -32,7 +32,7 @@ func TestDefaultSqlWriter_WriteRowRecords(t *testing.T) {
 	defer db.Close()
 	mock.ExpectExec(regexp.QuoteMeta(`OAD DATA INLINE FORMAT='csv', DATA='record1
 ' INTO TABLE testDB.testTable`)).WillReturnResult(sqlmock.NewResult(1, 1))
-	db_holder.SetDBConn(db, "")
+	db_holder.SetDBConn(db)
 
 	// set up your DefaultSqlWriter and records
 	var dummyStrColumn = table.Column{Name: "str", ColType: table.TVarchar, Scale: 32, Default: "", Comment: "str column"}
