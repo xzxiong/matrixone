@@ -531,6 +531,9 @@ type ObservabilityParameters struct {
 	// Disable merge statements
 	EnableStmtMerge bool `toml:"enableStmtMerge"`
 
+	// for cu calculation
+	CU OBCUConfig `toml:"cu"`
+
 	OBCollectorConfig
 }
 
@@ -559,6 +562,7 @@ func NewObservabilityParameters() *ObservabilityParameters {
 		AggregationWindow:                  toml.Duration{},
 		SelectAggrThreshold:                toml.Duration{},
 		EnableStmtMerge:                    false,
+		CU:                                 *NewOBCUConfig(),
 		OBCollectorConfig:                  *NewOBCollectorConfig(),
 	}
 	op.MetricInternalGatherInterval.Duration = defaultMetricInternalGatherInterval
@@ -573,6 +577,7 @@ func NewObservabilityParameters() *ObservabilityParameters {
 
 func (op *ObservabilityParameters) SetDefaultValues(version string) {
 	op.OBCollectorConfig.SetDefaultValues()
+	op.CU.SetDefaultValues()
 
 	op.MoVersion = version
 
@@ -672,6 +677,69 @@ func (c *OBCollectorConfig) SetDefaultValues() {
 	}
 	if c.ExporterCntPercent <= 0 {
 		c.ExporterCntPercent = defaultOBExporterCntPercent
+	}
+}
+
+type OBCUConfig struct {
+	// cu unit
+	CUUnit float64 `toml:"cu_unit"`
+	// price
+	CpuPrice      float64 `toml:"cpu_price"`
+	MemPrice      float64 `toml:"mem_price"`
+	IoInPrice     float64 `toml:"io_in_price"`
+	IoOutPrice    float64 `toml:"io_out_price"`
+	TrafficPrice0 float64 `toml:"traffic_price_0"`
+	TrafficPrice1 float64 `toml:"traffic_price_1"`
+	TrafficPrice2 float64 `toml:"traffic_price_2"`
+}
+
+const CUUnitDefault = 1.0026988039e-06
+const CUCpuPriceDefault = 7.43e-14
+const CUMemPriceDefault = 6.79e-24
+const CUIOInPriceDefault = 1e-06
+const CUIOOutPriceDefault = 1e-06
+const CUTrafficPrice0Default = 8.94e-10
+const CUTrafficPrice1Default = 0
+const CUTrafficPrice2Default = 8.94e-10
+
+func NewOBCUConfig() *OBCUConfig {
+	cfg := &OBCUConfig{
+		CUUnit:        CUUnitDefault,
+		CpuPrice:      CUCpuPriceDefault,
+		MemPrice:      CUMemPriceDefault,
+		IoInPrice:     CUIOInPriceDefault,
+		IoOutPrice:    CUIOOutPriceDefault,
+		TrafficPrice0: CUTrafficPrice0Default,
+		TrafficPrice1: CUTrafficPrice1Default,
+		TrafficPrice2: CUTrafficPrice2Default,
+	}
+	return cfg
+}
+
+func (c *OBCUConfig) SetDefaultValues() {
+	if c.CUUnit <= 0 {
+		c.CUUnit = CUUnitDefault
+	}
+	if c.CpuPrice <= 0 {
+		c.CpuPrice = CUCpuPriceDefault
+	}
+	if c.MemPrice <= 0 {
+		c.MemPrice = CUMemPriceDefault
+	}
+	if c.IoInPrice <= 0 {
+		c.IoInPrice = CUIOInPriceDefault
+	}
+	if c.IoOutPrice <= 0 {
+		c.IoOutPrice = CUIOOutPriceDefault
+	}
+	if c.TrafficPrice0 <= 0 {
+		c.TrafficPrice0 = CUTrafficPrice0Default
+	}
+	if c.TrafficPrice1 <= 0 {
+		c.TrafficPrice1 = CUTrafficPrice1Default
+	}
+	if c.TrafficPrice2 <= 0 {
+		c.TrafficPrice2 = CUTrafficPrice2Default
 	}
 }
 
