@@ -163,6 +163,10 @@ func StatementInfoFilter(i Item) bool {
 		return false
 	}
 
+	if statementInfo.statsArray.GetCU() < 0 {
+		return false
+	}
+
 	// Check SqlSourceType
 	switch statementInfo.SqlSourceType {
 	case constant.InternalSql, constant.ExternSql, constant.CloudNoUserSql:
@@ -593,7 +597,7 @@ func EndStatement(ctx context.Context, err error, sentRows int64, outBytes int64
 		s.statsArray.InitIfEmpty().WithOutTrafficBytes(float64(outBytes)).WithOutPacketCount(float64(outPacket))
 		s.ExecPlan2Stats(ctx)
 		if s.statsArray.GetCU() < 0 {
-			logutil.Warnf("cu overflow: %f, %s", s.statsArray.GetCU(), uuid.UUID(s.StatementID).String())
+			logutil.Warnf("cu overflow: %f, %s, stats: %s, statement: %s", s.statsArray.GetCU(), uuid.UUID(s.StatementID).String(), s.statsArray.ToJsonString(), s.Statement)
 		} else {
 			metric.StatementCUCounter(s.Account, s.SqlSourceType).Add(s.statsArray.GetCU())
 		}
