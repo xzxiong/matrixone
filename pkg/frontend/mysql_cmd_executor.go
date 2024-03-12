@@ -4837,11 +4837,10 @@ type jsonPlanHandler struct {
 func NewJsonPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *plan2.Plan) *jsonPlanHandler {
 	h := NewMarshalPlanHandler(ctx, stmt, plan)
 	jsonBytes := h.Marshal(ctx)
-	statsBytes, stats := h.Stats(ctx)
 	return &jsonPlanHandler{
 		jsonBytes:  jsonBytes,
-		statsBytes: statsBytes,
-		stats:      stats,
+		statsBytes: h.statsBytes,
+		stats:      h.stats,
 		buffer:     h.handoverBuffer(),
 	}
 }
@@ -4868,6 +4867,10 @@ type marshalPlanHandler struct {
 	stmt        *motrace.StatementInfo
 	uuid        uuid.UUID
 	buffer      *bytes.Buffer
+
+	// debug for #14926
+	statsBytes statistic.StatsArray
+	stats      motrace.Statistic
 }
 
 func NewMarshalPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, plan *plan2.Plan) *marshalPlanHandler {
@@ -4890,9 +4893,10 @@ func NewMarshalPlanHandler(ctx context.Context, stmt *motrace.StatementInfo, pla
 		uuid:   uuid,
 		buffer: nil,
 	}
+	h.statsBytes, h.stats = h.Stats(ctx)
 	// check longQueryTime, need after StatementInfo.MarkResponseAt
 	// MoLogger NOT record ExecPlan
-	if stmt.Duration > motrace.GetLongQueryTime() && !stmt.IsMoLogger() {
+	if (stmt.Duration > motrace.GetLongQueryTime() && !stmt.IsMoLogger()) || h.statsBytes.GetTimeConsumed() < 0 {
 		h.marshalPlan = explain.BuildJsonPlan(ctx, h.uuid, &explain.MarshalPlanOptions, h.query)
 	}
 	return h
@@ -4990,6 +4994,17 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 						statsInfo.CompileDuration+
 						statsInfo.PlanDuration) -
 					float64(statsInfo.IOAccessTimeConsumption+statsInfo.LockTimeConsumption))
+			if statsByte.GetTimeConsumed() < 0 {
+				// issue 14926
+				logutil.Warnf("statsInfo: %d, %d, %d, %d, %d -> %f",
+					statsInfo.ParseDuration,
+					statsInfo.CompileDuration,
+					statsInfo.PlanDuration,
+					statsInfo.IOAccessTimeConsumption,
+					statsInfo.LockTimeConsumption,
+					statsByte.GetTimeConsumed(),
+				)
+			}
 		}
 
 	} else {
