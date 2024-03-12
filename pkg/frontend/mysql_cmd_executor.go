@@ -4996,7 +4996,8 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 					float64(statsInfo.IOAccessTimeConsumption+statsInfo.LockTimeConsumption))
 			if statsByte.GetTimeConsumed() < 0 {
 				// issue 14926
-				logutil.Warnf("statsInfo: %d, %d, %d, %d, %d -> %f",
+				logutil.Warnf("statsInfo %s: + %d + %d + %d - %d - %d -> %f",
+					uuid.UUID(h.stmt.StatementID).String(),
 					statsInfo.ParseDuration,
 					statsInfo.CompileDuration,
 					statsInfo.PlanDuration,
