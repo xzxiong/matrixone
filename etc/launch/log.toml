@@ -4,3 +4,5 @@ data-dir = "./mo-data"
 
 [log]
 level = "info"
+[observability]
+EnableMetricToProm = true
