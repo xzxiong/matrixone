@@ -4971,14 +4971,11 @@ func (h *marshalPlanHandler) Marshal(ctx context.Context) (jsonBytes []byte) {
 
 func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.StatsArray, stats motrace.Statistic) {
 	if h.query != nil {
-		var bytes = make([][]byte, 0, 16)
 		options := &explain.MarshalPlanOptions
 		statsByte.Reset()
-		bytes = append(bytes, statsByte.ToJsonString())
 		for _, node := range h.query.Nodes {
 			// part 1: for statistic.StatsArray
 			s := explain.GetStatistic4Trace(ctx, node, options)
-			bytes = append(bytes, s.ToJsonString())
 			statsByte.Add(&s)
 			// part 2: for motrace.Statistic
 			if node.NodeType == plan.Node_TABLE_SCAN || node.NodeType == plan.Node_EXTERNAL_SCAN {
@@ -4999,9 +4996,7 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 					float64(statsInfo.IOAccessTimeConsumption+statsInfo.LockTimeConsumption))
 			if statsByte.GetTimeConsumed() < 0 {
 				// issue 14926
-				sid := uuid.UUID(h.stmt.StatementID).String()
-				logutil.Warnf("statsInfo %s: %d, %d, %d, %d, %d -> %f",
-					sid,
+				logutil.Warnf("statsInfo: %d, %d, %d, %d, %d -> %f",
 					statsInfo.ParseDuration,
 					statsInfo.CompileDuration,
 					statsInfo.PlanDuration,
@@ -5009,9 +5004,6 @@ func (h *marshalPlanHandler) Stats(ctx context.Context) (statsByte statistic.Sta
 					statsInfo.LockTimeConsumption,
 					statsByte.GetTimeConsumed(),
 				)
-				for idx, s := range bytes {
-					logutil.Warnf("%s statsArray[%02d] - %s", sid, idx, s)
-				}
 			}
 		}
 
