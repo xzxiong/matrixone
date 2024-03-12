@@ -42,7 +42,11 @@ func WithContextWithDepth(ctx context.Context, err error, depth int) error {
 	span := trace.SpanFromContext(ctx)
 	if sc := span.SpanContext(); !sc.IsEmpty() {
 		newSC := sc.Clone()
-		ctx = trace.ContextWithSpanContext(context.Background(), newSC)
+		newCtx := trace.ContextWithSpanContext(context.Background(), newSC)
+		if NoReportFromContext(ctx) {
+			newCtx = ContextWithNoReport(newCtx, true)
+		}
+		ctx = newCtx
 	}
 	err = &withContext{cause: err, ctx: ctx}
 	GetReportErrorFunc()(ctx, err, depth+1)
