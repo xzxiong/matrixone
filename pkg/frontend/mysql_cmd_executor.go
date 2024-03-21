@@ -314,12 +314,10 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		// fix original issue #8165
 		stm.User = ""
 	}
-	if !stm.IsZeroTxnID() {
-		stm.Report(ctx)
-	}
 	if stm.IsMoLogger() && stm.StatementType == "Load" && len(stm.Statement) > 128 {
 		stm.Statement = envStmt[:40] + "..." + envStmt[len(envStmt)-45:]
 	}
+	stm.Report(ctx) // pls keep it simple: Only call Report twice at most.
 	ses.SetTStmt(stm)
 
 	return ctx, nil
@@ -384,7 +382,9 @@ var RecordStatementTxnID = func(ctx context.Context, ses *Session) error {
 			stm.SetTxnID(txn.Txn().ID)
 			ses.SetTxnId(txn.Txn().ID)
 		}
-		stm.Report(ctx)
+		// simplify the logic of query's CollectionTxnOperator. refer to https://github.com/matrixorigin/matrixone/pull/13625
+		// only call at the beginning / or the end of query's life-cycle.
+		// stm.Report(ctx)
 	}
 
 	// set frontend statement's txn-id
