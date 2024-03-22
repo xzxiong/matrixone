@@ -251,6 +251,12 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 			bb.WriteString(execSql)
 			text = SubStringFromBegin(bb.String(), int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		} else {
+			if envStmt == "" {
+				// case: exec `set @ t= 2;` will trigger an internal query with the same session.
+				fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
+				cw.GetAst().Format(fmtCtx)
+				envStmt = fmtCtx.String()
+			}
 			text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		}
 	} else {
@@ -270,12 +276,20 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		ses.pushQueryId(types.Uuid(stmID).ToString())
 	}
 
+	// -------------------------------------
+	// Gen StatementInfo
+	// -------------------------------------
+
 	if !motrace.GetTracerProvider().IsEnable() {
+		return ctx, nil
+	}
+	if sqlType == constant.InternalSql && envStmt == "" {
+		// ignore internal EMPTY query.
 		return ctx, nil
 	}
 	tenant := ses.GetTenantInfo()
 	if tenant == nil {
-		tenant, _ = GetTenantInfo(ctx, "internal")
+		tenant, _ = GetTenantInfo(ctx, "internal") // pls task care of mce.GetDoQueryFunc() call case.
 	}
 	stm := motrace.NewStatementInfo()
 	// set TransactionID
@@ -4190,6 +4204,14 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 	//the ses.GetUserName returns the user_name with the account_name.
 	//here,we only need the user_name.
 	userNameOnly := rootName
+
+	preStmt := ses.tStmt
+	ses.tStmt = nil
+	defer func() {
+		if preStmt != nil {
+			ses.tStmt = preStmt
+		}
+	}()
 
 	proc := process.New(
 		requestCtx,
