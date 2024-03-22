@@ -3912,6 +3912,9 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 				Producing the data row and sending the data row
 			*/
 			// todo: add trace
+			if ses.tStmt != nil && ses.tStmt.Statement == "select * from system.statement_info where statement_id = '018e65b9-9650-7382-87e5-fc319714201e'" {
+				return moerr.GetOkExpectedDup()
+			}
 			if _, err = runner.Run(0); err != nil {
 				return
 			}

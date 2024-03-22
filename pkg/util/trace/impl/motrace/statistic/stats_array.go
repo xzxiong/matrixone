@@ -250,10 +250,10 @@ type statsInfoKey struct{}
 
 // statistic info of sql
 type StatsInfo struct {
-	ParseDuration     time.Duration `json:"ParseDuration"`
-	PlanDuration      time.Duration `json:"PlanDuration"`
-	CompileDuration   time.Duration `json:"CompileDuration"`
-	ExecutionDuration time.Duration `json:"ExecutionDuration"`
+	ParseDuration     time.Duration `json:"Parse,omitempty"`
+	PlanDuration      time.Duration `json:"Plan,omitempty"`
+	CompileDuration   time.Duration `json:"Compile,omitempty"`
+	ExecutionDuration time.Duration `json:"Exec,omitempty"`
 
 	//PipelineTimeConsumption      time.Duration
 	//PipelineBlockTimeConsumption time.Duration
@@ -264,11 +264,11 @@ type StatsInfo struct {
 
 	LockTimeConsumption int64
 
-	ParseStartTime     time.Time `json:"ParseStartTime"`
-	PlanStartTime      time.Time `json:"PlanStartTime"`
-	CompileStartTime   time.Time `json:"CompileStartTime"`
-	ExecutionStartTime time.Time `json:"ExecutionStartTime"`
-	ExecutionEndTime   time.Time `json:"ExecutionEndTime"`
+	ParseStartTime     time.Time `json:"ParseST,omitempty"`
+	PlanStartTime      time.Time `json:"PlanST,omitempty"`
+	CompileStartTime   time.Time `json:"CompileST,omitempty"`
+	ExecutionStartTime time.Time `json:"ExecST,omitempty"`
+	ExecutionEndTime   time.Time `json:"ExecET,omitempty"`
 }
 
 func (stats *StatsInfo) CompileStart() {
