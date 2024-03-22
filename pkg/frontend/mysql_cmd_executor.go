@@ -4206,13 +4206,13 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 	//here,we only need the user_name.
 	userNameOnly := rootName
 
-	preStmt := ses.tStmt
-	ses.tStmt = nil
-	defer func() {
-		if preStmt != nil {
-			ses.tStmt = preStmt
+	// case: exec `set @ t= 2;` will trigger an internal query, like: `select 1 from dual`, in the same session.
+	defer func(stmt *motrace.StatementInfo) {
+		if stmt != nil {
+			ses.tStmt = stmt
 		}
-	}()
+	}(ses.tStmt)
+	ses.tStmt = nil
 
 	proc := process.New(
 		requestCtx,
