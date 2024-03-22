@@ -258,17 +258,33 @@ type StatsInfo struct {
 	//PipelineTimeConsumption      time.Duration
 	//PipelineBlockTimeConsumption time.Duration
 
-	IOAccessTimeConsumption int64
+	IOAccessTimeConsumption int64 `json:"IO,omitempty"`
 	//S3ReadBytes             uint
 	//S3WriteBytes            uint
 
-	LockTimeConsumption int64
+	LockTimeConsumption int64 `json:"Lock,omitempty"`
 
 	ParseStartTime     time.Time `json:"ParseST,omitempty"`
 	PlanStartTime      time.Time `json:"PlanST,omitempty"`
 	CompileStartTime   time.Time `json:"CompileST,omitempty"`
 	ExecutionStartTime time.Time `json:"ExecST,omitempty"`
 	ExecutionEndTime   time.Time `json:"ExecET,omitempty"`
+}
+
+func ZeroStatsInfo(beginInstant time.Time) StatsInfo {
+	return StatsInfo{
+		ParseDuration:           0,
+		PlanDuration:            0,
+		CompileDuration:         0,
+		ExecutionDuration:       0,
+		IOAccessTimeConsumption: 0,
+		LockTimeConsumption:     0,
+		ParseStartTime:          beginInstant,
+		PlanStartTime:           time.Time{},
+		CompileStartTime:        time.Time{},
+		ExecutionStartTime:      time.Time{},
+		ExecutionEndTime:        time.Time{},
+	}
 }
 
 func (stats *StatsInfo) CompileStart() {

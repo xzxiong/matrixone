@@ -4278,7 +4278,8 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 	ses.txnCompileCtx.SetProcess(proc)
 	ses.proc.SessionInfo = proc.SessionInfo
 
-	statsInfo := statistic.StatsInfo{ParseStartTime: beginInstant}
+	//statsInfo := statistic.StatsInfo{ParseStartTime: beginInstant}
+	statsInfo := statistic.ZeroStatsInfo(beginInstant)
 	requestCtx = statistic.ContextWithStatsInfo(requestCtx, &statsInfo)
 
 	cws, err := GetComputationWrapper(ses.GetDatabaseName(),
