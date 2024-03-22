@@ -251,12 +251,12 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 			bb.WriteString(execSql)
 			text = SubStringFromBegin(bb.String(), int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		} else {
-			if envStmt == "" {
-				// case: exec `set @ t= 2;` will trigger an internal query with the same session.
-				fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
-				cw.GetAst().Format(fmtCtx)
-				envStmt = fmtCtx.String()
-			}
+			// ignore envStmt == ""
+			// case: exec `set @ t= 2;` will trigger an internal query with the same session.
+			// If you need real sql, can try:
+			//	+ fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
+			//	+ cw.GetAst().Format(fmtCtx)
+			//  + envStmt = fmtCtx.String()
 			text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		}
 	} else {
@@ -284,6 +284,7 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		return ctx, nil
 	}
 	if sqlType == constant.InternalSql && envStmt == "" {
+		// case: exec `set @ t= 2;` will trigger an internal query with the same session, like: `select 2 from dual`
 		// ignore internal EMPTY query.
 		return ctx, nil
 	}
