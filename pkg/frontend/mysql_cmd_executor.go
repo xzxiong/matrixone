@@ -251,6 +251,12 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 			bb.WriteString(execSql)
 			text = SubStringFromBegin(bb.String(), int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		} else {
+			// ignore envStmt == ""
+			// case: exec `set @ t= 2;` will trigger an internal query with the same session.
+			// If you need real sql, can try:
+			//	+ fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
+			//	+ cw.GetAst().Format(fmtCtx)
+			//  + envStmt = fmtCtx.String()
 			text = SubStringFromBegin(envStmt, int(ses.GetParameterUnit().SV.LengthOfQueryPrinted))
 		}
 	} else {
@@ -264,16 +270,27 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	ses.SetSqlOfStmt(text)
 
 	//note: txn id here may be empty
+	// add by #9907, set the result of last_query_id(), this will pass those isCmdFieldListSql() from client.
+	// fixme: this op leads all internal/background executor got NULL result if call last_query_id().
 	if sqlType != constant.InternalSql {
 		ses.pushQueryId(types.Uuid(stmID).ToString())
 	}
 
+	// -------------------------------------
+	// Gen StatementInfo
+	// -------------------------------------
+
 	if !motrace.GetTracerProvider().IsEnable() {
+		return ctx, nil
+	}
+	if sqlType == constant.InternalSql && envStmt == "" {
+		// case: exec `set @ t= 2;` will trigger an internal query with the same session, like: `select 2 from dual`
+		// ignore internal EMPTY query.
 		return ctx, nil
 	}
 	tenant := ses.GetTenantInfo()
 	if tenant == nil {
-		tenant, _ = GetTenantInfo(ctx, "internal")
+		tenant, _ = GetTenantInfo(ctx, "internal") // pls task care of mce.GetDoQueryFunc() call case.
 	}
 	stm := motrace.NewStatementInfo()
 	// set TransactionID
@@ -312,17 +329,13 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		// fix original issue #8165
 		stm.User = ""
 	}
-	if sqlType != constant.InternalSql {
-		ses.SetTStmt(stm)
-	}
-	if !stm.IsZeroTxnID() {
-		stm.Report(ctx)
-	}
 	if stm.IsMoLogger() && stm.StatementType == "Load" && len(stm.Statement) > 128 {
 		stm.Statement = envStmt[:40] + "..." + envStmt[len(envStmt)-45:]
 	}
+	stm.Report(ctx) // pls keep it simple: Only call Report twice at most.
+	ses.SetTStmt(stm)
 
-	return motrace.ContextWithStatement(ctx, stm), nil
+	return ctx, nil
 }
 
 var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *process.Process, envBegin time.Time,
@@ -347,14 +360,14 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 			if err != nil {
 				return nil, err
 			}
-			motrace.EndStatement(ctx, retErr, 0, 0, 0)
+			ses.tStmt.EndStatement(ctx, retErr, 0, 0, 0)
 		}
 	} else {
 		ctx, err = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true)
 		if err != nil {
 			return nil, err
 		}
-		motrace.EndStatement(ctx, retErr, 0, 0, 0)
+		ses.tStmt.EndStatement(ctx, retErr, 0, 0, 0)
 	}
 
 	tenant := ses.GetTenantInfo()
@@ -370,7 +383,11 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 var RecordStatementTxnID = func(ctx context.Context, ses *Session) error {
 	var txn TxnOperator
 	var err error
-	if stm := motrace.StatementFromContext(ctx); ses != nil && stm != nil && stm.IsZeroTxnID() {
+	if ses == nil {
+		return nil
+	}
+
+	if stm := ses.tStmt; stm != nil && stm.IsZeroTxnID() {
 		if handler := ses.GetTxnHandler(); handler.IsValidTxnOperator() {
 			// simplify the logic of TxnOperator. refer to https://github.com/matrixorigin/matrixone/pull/13436#pullrequestreview-1779063200
 			_, txn, err = handler.GetTxnOperator()
@@ -380,7 +397,9 @@ var RecordStatementTxnID = func(ctx context.Context, ses *Session) error {
 			stm.SetTxnID(txn.Txn().ID)
 			ses.SetTxnId(txn.Txn().ID)
 		}
-		stm.Report(ctx)
+		// simplify the logic of query's CollectionTxnOperator. refer to https://github.com/matrixorigin/matrixone/pull/13625
+		// only call at the beginning / or the end of query's life-cycle.
+		// stm.Report(ctx)
 	}
 
 	// set frontend statement's txn-id
@@ -4186,6 +4205,14 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 	//the ses.GetUserName returns the user_name with the account_name.
 	//here,we only need the user_name.
 	userNameOnly := rootName
+
+	// case: exec `set @ t= 2;` will trigger an internal query, like: `select 1 from dual`, in the same session.
+	defer func(stmt *motrace.StatementInfo) {
+		if stmt != nil {
+			ses.tStmt = stmt
+		}
+	}(ses.tStmt)
+	ses.tStmt = nil
 
 	proc := process.New(
 		requestCtx,
