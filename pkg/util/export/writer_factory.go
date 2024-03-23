@@ -36,7 +36,7 @@ type reactWriter struct {
 	afters []table.CheckWriteHook
 }
 
-func newWriter(ctx context.Context, w table.RowWriter) *reactWriter {
+func newReactWriter(ctx context.Context, w table.RowWriter) *reactWriter {
 	return &reactWriter{
 		ctx: ctx,
 		w:   w,
@@ -79,9 +79,9 @@ func GetWriterFactory(fs fileservice.FileService, nodeUUID, nodeType string, ena
 			}
 			cw := etl.NewCSVWriter(ctx, etl.NewFSWriter(ctx, fs, options...))
 			if enableSqlWriter {
-				return newWriter(ctx, etl.NewSqlWriter(ctx, tbl, cw))
+				return newReactWriter(ctx, etl.NewSqlWriter(ctx, tbl, cw))
 			} else {
-				return newWriter(ctx, cw)
+				return newReactWriter(ctx, cw)
 			}
 		}
 	case table.TaeExtension:
