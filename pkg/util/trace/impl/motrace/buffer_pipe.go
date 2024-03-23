@@ -132,6 +132,11 @@ func genETLData(ctx context.Context, in []IBuffer2SqlItem, buf *bytes.Buffer, fa
 		)
 	}
 
+	// Initialize writer factory
+	if factory == nil {
+		factory = GetTracerProvider().writerFactory
+	}
+
 	ts := time.Now()
 	writerMap := make(map[string]table.RowWriter, 2)
 	writeValues := func(item table.RowField) {
@@ -140,9 +145,6 @@ func genETLData(ctx context.Context, in []IBuffer2SqlItem, buf *bytes.Buffer, fa
 		account := row.GetAccount()
 		w, exist := writerMap[account]
 		if !exist {
-			if factory == nil {
-				factory = GetTracerProvider().writerFactory
-			}
 			w = factory.GetRowWriter(ctx, account, row.Table, ts)
 			writerMap[row.GetAccount()] = w
 		}

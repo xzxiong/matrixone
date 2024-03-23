@@ -59,6 +59,7 @@ type tracerProviderConfig struct {
 	batchProcessor BatchProcessor // WithBatchProcessor
 
 	// writerFactory gen writer for CSV output
+	// normally, it is export.GetWriterFactory.
 	writerFactory table.WriterFactory // WithFSWriterFactory, default from export.GetFSWriterFactory4Trace
 	// disableSqlWriter
 	disableSqlWriter bool // set by WithSQLWriterDisable
