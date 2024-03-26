@@ -31,7 +31,7 @@ type Content interface {
 }
 
 type Collector interface {
-	Collect(ctx context.Context, item Item)
+	Collect(ctx context.Context, item Item) error
 	Start(ctx context.Context)
 	Stop(graceful bool)
 }
