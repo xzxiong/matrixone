@@ -14,14 +14,22 @@
 
 package collect
 
+// ================================================================================
+// Make it as simple as possible
+// ================================================================================
+
 import (
+	"bytes"
 	"context"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/util/errutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	v2 "github.com/matrixorigin/matrixone/pkg/util/export/v2"
+	"sync"
 	"time"
 )
+
+const MiB = 1 << 20
 
 const defaultQueueSize = 1310720 // queue mem cost = 10MB
 
@@ -45,6 +53,10 @@ type CsvExportCollector struct {
 	awakeRegular *time.Ticker
 	awakeFull    chan interface{}
 	awakeExport  chan interface{}
+
+	// content buffer
+	key2Buffer map[string]*contentBuffer
+	bufferMux  sync.RWMutex
 }
 
 type CollectorOption func(*CsvExportCollector)
@@ -61,6 +73,8 @@ func NewCollector(ctx context.Context, options ...CollectorOption) *CsvExportCol
 		awakeCollect:    make(chan v2.Item, defaultQueueSize),
 		awakeRegular:    time.NewTicker(defaultRegularInterval),
 		awakeExport:     make(chan interface{}),
+		// part buffer
+		key2Buffer: make(map[string]*contentBuffer),
 	}
 	for _, opt := range options {
 		opt.Apply(c)
@@ -97,9 +111,9 @@ func (c *CsvExportCollector) loop() {
 		case <-c.stopCh:
 			// quit
 			return
-		case <-c.awakeCollect:
+		case item := <-c.awakeCollect:
 			// consume all content
-			c.consumeBuffer()
+			c.put(item)
 
 		case <-c.awakeRegular.C:
 			// handle regular trigger
@@ -115,11 +129,100 @@ func (c *CsvExportCollector) loop() {
 	}
 }
 
-func (c *CsvExportCollector) consumeBuffer() {
-	nextTime := time.Now().Add(time.Second)
-	for {
-		for {
-			case <- c.awakeCollect:
-		}
+func (c *CsvExportCollector) put(item v2.Item) {
+	buf := c.getBuffer(item.GetName())
+	buf.Push(item)
+}
+
+var _ v2.Content = (*contentBuffer)(nil)
+
+type contentBuffer struct {
+	mux         sync.Mutex
+	buffer      *bytes.Buffer
+	MaxSize     int
+	ReserveSize int
+}
+
+type contentBufferOption func(*contentBuffer)
+
+func (o contentBufferOption) Apply(buffer *contentBuffer) {
+	o(buffer)
+}
+
+func NewContentBuffer(opts ...contentBufferOption) *contentBuffer {
+	b := &contentBuffer{
+		MaxSize:     10 * MiB,
+		ReserveSize: MiB,
 	}
+	for _, opt := range opts {
+		opt.Apply(b)
+	}
+
+	// do init
+	b.buffer = bytes.NewBuffer(make([]byte, 0, b.MaxSize+b.ReserveSize))
+	// End init
+	return b
+}
+
+func (c *contentBuffer) Push(item v2.Item) {
+	//TODO implement me
+	panic("implement me")
+
+	// c.Lock()
+	// c.WriteBuffer
+	// if c.Full() send write signal, refresh buffer
+	// -	NewWriteRequest(c.buffer)
+	// -	c.buffer = bytes.NewBuffer(make([]byte, 0, c.MaxSize+c.ReserveSize))
+	// c.Unlock()
+}
+
+func (c *contentBuffer) Full() bool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *contentBuffer) isFull() bool {
+	return c.buffer.Len() > c.MaxSize
+}
+
+func (c *CsvExportCollector) getBuffer(key string) *contentBuffer {
+	c.bufferMux.RLock()
+	buf, exist := c.key2Buffer[key]
+	if !exist {
+		c.bufferMux.RUnlock()
+		c.bufferMux.Lock()
+		if buf, exist = c.key2Buffer[key]; !exist {
+			// TODO: register prepare function
+			// case: statement_info need aggr
+			buf = NewContentBuffer()
+			c.key2Buffer[key] = buf
+		}
+		c.bufferMux.Unlock()
+		c.bufferMux.RLock()
+	}
+	c.bufferMux.RUnlock()
+	return buf
+}
+
+type exportRequest struct {
+}
+
+func NewExportRequest() *exportRequest {
+	return &exportRequest{}
+}
+
+func (e *exportRequest) GetName() string {
+	return "export"
+}
+
+func (e *exportRequest) GetContent() v2.Content {
+	return nil
+}
+
+func (e *exportRequest) GetContentType() string {
+	return "text/csv"
+}
+
+func (e *exportRequest) GetContentEncoding() string {
+	return "utf-8"
 }

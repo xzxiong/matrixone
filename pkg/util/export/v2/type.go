@@ -26,6 +26,7 @@ type Item interface {
 }
 
 type Content interface {
+	Push(Item)
 	// Full returns true if the content is full.
 	Full() bool
 }
