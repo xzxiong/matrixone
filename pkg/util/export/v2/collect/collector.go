@@ -47,8 +47,10 @@ type CsvExportCollector struct {
 	writerFactory   table.WriterFactory
 	regularInterval time.Duration
 
-	ctx          context.Context
-	stopCh       chan struct{}
+	ctx     context.Context
+	stopCtx context.Context
+	cancel  context.CancelFunc
+
 	awakeCollect chan v2.Item
 	awakeRegular *time.Ticker
 	awakeFull    chan interface{}
@@ -69,7 +71,6 @@ func NewCollector(ctx context.Context, options ...CollectorOption) *CsvExportCol
 	c := &CsvExportCollector{
 		ctx:             ctx,
 		regularInterval: defaultRegularInterval,
-		stopCh:          make(chan struct{}),
 		awakeCollect:    make(chan v2.Item, defaultQueueSize),
 		awakeRegular:    time.NewTicker(defaultRegularInterval),
 		awakeExport:     make(chan interface{}),
@@ -79,12 +80,14 @@ func NewCollector(ctx context.Context, options ...CollectorOption) *CsvExportCol
 	for _, opt := range options {
 		opt.Apply(c)
 	}
+
+	c.stopCtx, c.cancel = context.WithCancel(ctx)
 	return c
 }
 
 func (c *CsvExportCollector) Collect(ctx context.Context, item v2.Item) error {
 	select {
-	case <-c.stopCh:
+	case <-c.stopCtx.Done():
 		ctx = errutil.ContextWithNoReport(ctx, true)
 		return moerr.NewInternalError(ctx, "MOCollector stopped")
 	case c.awakeCollect <- item:
@@ -108,7 +111,7 @@ func (c *CsvExportCollector) loop() {
 
 	for {
 		select {
-		case <-c.stopCh:
+		case <-c.stopCtx.Done():
 			// quit
 			return
 		case item := <-c.awakeCollect:
@@ -137,11 +140,25 @@ func (c *CsvExportCollector) put(item v2.Item) {
 var _ v2.Content = (*contentBuffer)(nil)
 
 type contentBuffer struct {
+	ctx     context.Context
+	stopCtx context.Context
+	cancel  context.CancelFunc
+
 	mux         sync.Mutex
 	buffer      *bytes.Buffer
 	MaxSize     int
 	ReserveSize int
+
+	filters        []filterFunc
+	getter         []getterFunc
+	gatherInterval time.Duration
+
+	// from Collector
+	writerFactory table.WriterFactory
 }
+
+type filterFunc func(v2.Item) bool
+type getterFunc func() []v2.Item
 
 type contentBufferOption func(*contentBuffer)
 
@@ -149,8 +166,9 @@ func (o contentBufferOption) Apply(buffer *contentBuffer) {
 	o(buffer)
 }
 
-func NewContentBuffer(opts ...contentBufferOption) *contentBuffer {
+func NewContentBuffer(ctx context.Context, opts ...contentBufferOption) *contentBuffer {
 	b := &contentBuffer{
+		ctx:         ctx,
 		MaxSize:     10 * MiB,
 		ReserveSize: MiB,
 	}
@@ -159,8 +177,12 @@ func NewContentBuffer(opts ...contentBufferOption) *contentBuffer {
 	}
 
 	// do init
+	b.stopCtx, b.cancel = context.WithCancel(ctx)
 	b.buffer = bytes.NewBuffer(make([]byte, 0, b.MaxSize+b.ReserveSize))
 	// End init
+
+	go b.loop()
+
 	return b
 }
 
@@ -168,21 +190,64 @@ func (c *contentBuffer) Push(item v2.Item) {
 	//TODO implement me
 	panic("implement me")
 
-	// c.Lock()
+	for _, filter := range c.filters {
+		// TODO: need other way to collect filtered-item
+		if filter(item) {
+			return
+		}
+	}
+
+	c.PushItem(item)
+}
+
+func (c *contentBuffer) PushItem(item v2.Item) {
+	// TODO implement me
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	row := item.GetTable().GetRow(c.ctx)
+	item.FillRow(c.ctx, row)
+	account := row.GetAccount()
+	c.writerFactory.GetRowWriter(c.ctx, account, row.Table, ts)
+
 	// c.WriteBuffer
 	// if c.Full() send write signal, refresh buffer
 	// -	NewWriteRequest(c.buffer)
 	// -	c.buffer = bytes.NewBuffer(make([]byte, 0, c.MaxSize+c.ReserveSize))
-	// c.Unlock()
 }
 
 func (c *contentBuffer) Full() bool {
-	//TODO implement me
-	panic("implement me")
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	return c.isFull()
 }
 
 func (c *contentBuffer) isFull() bool {
 	return c.buffer.Len() > c.MaxSize
+}
+
+func (c contentBuffer) willFull(size int) bool {
+	return c.buffer.Len()+size > c.MaxSize
+}
+
+func (c *contentBuffer) loop() {
+	if len(c.getter) == 0 {
+		return
+	}
+	for {
+		select {
+		case <-c.stopCtx.Done():
+			return
+		case <-time.After(c.gatherInterval):
+			for _, g := range c.getter {
+				items := g()
+				for _, item := range items {
+					c.PushItem(item)
+					// fixme metric counter
+				}
+			}
+		}
+	}
 }
 
 func (c *CsvExportCollector) getBuffer(key string) *contentBuffer {
@@ -194,7 +259,7 @@ func (c *CsvExportCollector) getBuffer(key string) *contentBuffer {
 		if buf, exist = c.key2Buffer[key]; !exist {
 			// TODO: register prepare function
 			// case: statement_info need aggr
-			buf = NewContentBuffer()
+			buf = NewContentBuffer(c.ctx)
 			c.key2Buffer[key] = buf
 		}
 		c.bufferMux.Unlock()

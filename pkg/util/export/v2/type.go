@@ -14,9 +14,13 @@
 
 package v2
 
-import "context"
+import (
+	"context"
+	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+)
 
 type Item interface {
+	table.RowField
 	// Size returns the size of the item.
 	// This is an estimate, not an exact value.
 	Size() int64
