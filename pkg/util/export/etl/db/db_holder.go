@@ -304,3 +304,13 @@ func isStatementExisted(ctx context.Context, db *sql.DB, stmtId string, status s
 	}
 	return exists, nil
 }
+
+var gLabels map[string]string = nil
+
+func SetLabelSelector(labels map[string]string) {
+	gLabels = labels
+}
+
+func GetLabelSelector() map[string]string {
+	return gLabels
+}
