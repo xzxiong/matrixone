@@ -52,7 +52,7 @@ const MaxConnectionNumber = 1
 
 const DBConnRetryThreshold = 8
 
-const DBRefreshTime = time.Hour
+const DBRefreshTime = 5 * time.Minute
 
 type DBUser struct {
 	UserName string
