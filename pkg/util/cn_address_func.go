@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"math/rand"
 	"time"
 
@@ -42,8 +43,10 @@ func AddressFunc(getClient func() HAKeeperClient) func(context.Context, bool) (s
 		defer cancel()
 		selector := clusterservice.NewSelector().SelectByLabel(nil, clusterservice.EQ)
 		if s, exist := runtime.ProcessLevelRuntime().GetGlobalVariables(runtime.BackgroundCNSelector); exist {
+			logutil.Warnf("AddressFunc: selector from global variable")
 			selector = s.(clusterservice.Selector)
 		}
+		logutil.Warnf("AddressFunc: selector: %v", selector)
 		details, err := getClient().GetClusterDetails(ctx)
 		if err != nil {
 			return "", err
@@ -52,6 +55,7 @@ func AddressFunc(getClient func() HAKeeperClient) func(context.Context, bool) (s
 		labeled_cns := make([]pb.CNStore, 0, len(details.CNStores))
 		for _, cn := range details.CNStores {
 			if cn.WorkState == metadata.WorkState_Working {
+				logutil.Warnf("AddressFunc: working cn: %s, labels: %v", cn.SQLAddress, cn.Labels)
 				cns = append(cns, cn)
 				// get logging cn label name
 				if cn.Labels != nil && selector.Match(cn.Labels) {
@@ -64,6 +68,7 @@ func AddressFunc(getClient func() HAKeeperClient) func(context.Context, bool) (s
 		}
 		var selectedCNs []pb.CNStore // Replace CNType with the actual type of your CNs
 		if len(labeled_cns) > 0 {
+			logutil.Warnf("AddressFunc: using CN with label %v", labeled_cns)
 			selectedCNs = labeled_cns
 		} else {
 			selectedCNs = cns
@@ -76,6 +81,7 @@ func AddressFunc(getClient func() HAKeeperClient) func(context.Context, bool) (s
 			n = len(selectedCNs) - 1
 		}
 
+		logutil.Warnf("AddressFunc: return ip: %s", selectedCNs[n].SQLAddress)
 		return selectedCNs[n].SQLAddress, nil
 
 	}
