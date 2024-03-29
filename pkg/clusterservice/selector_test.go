@@ -186,3 +186,49 @@ func TestGlobbing(t *testing.T) {
 		assert.False(t, globbing(src, dst))
 	}
 }
+
+func Test_labelContains(t *testing.T) {
+	type args struct {
+		src  map[string]string
+		dst  map[string]metadata.LabelList
+		comp func(string, string) bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "' 'VS_*",
+			args: args{
+				src:  map[string]string{"role": "OB"},
+				dst:  map[string]metadata.LabelList{"account": {Labels: []string{"sys"}}, "role": {Labels: []string{"OB"}}},
+				comp: globbing,
+			},
+			want: true,
+		},
+		{
+			name: "sys_VS_*",
+			args: args{
+				src:  map[string]string{"account": "sys", "role": "OB"},
+				dst:  map[string]metadata.LabelList{"account": {Labels: []string{"sys"}}, "role": {Labels: []string{"OB"}}},
+				comp: globbing,
+			},
+			want: true,
+		},
+		{
+			name: "src_more",
+			args: args{
+				src:  map[string]string{"account": "sys", "role": "OB", "not-exist": "val"},
+				dst:  map[string]metadata.LabelList{"account": {Labels: []string{"sys"}}, "role": {Labels: []string{"OB"}}},
+				comp: globbing,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, labelContains(tt.args.src, tt.args.dst, tt.args.comp), "labelContains(%v, %v, %v)", tt.args.src, tt.args.dst, tt.args.comp)
+		})
+	}
+}
