@@ -15,6 +15,8 @@
 package route
 
 import (
+	"github.com/matrixorigin/matrixone/pkg/logutil"
+	db_holder "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"strings"
 
 	"github.com/matrixorigin/matrixone/pkg/clusterservice"
@@ -45,6 +47,9 @@ func RouteForSuperTenant(
 
 	// S1: Select servers that configured as sys account.
 	mc.GetCNService(selector, func(s metadata.CNService) bool {
+		if username == db_holder.MOLoggerUser {
+			logutil.Warnf("RouteForSuperTenant.S1: %s, labels: %v", s.SQLAddress, s.Labels)
+		}
 		if filter != nil && filter(s.SQLAddress) {
 			return true
 		}
@@ -57,6 +62,9 @@ func RouteForSuperTenant(
 		}
 		return true
 	})
+	if username == db_holder.MOLoggerUser {
+		logutil.Warnf("RouteForSuperTenant.S1: found: %v", found)
+	}
 	if found {
 		return
 	}
@@ -76,6 +84,9 @@ func RouteForSuperTenant(
 		se = selector.SelectWithoutLabel(map[string]string{"account": "sys"})
 	}
 	mc.GetCNService(se, func(s metadata.CNService) bool {
+		if username == db_holder.MOLoggerUser {
+			logutil.Warnf("RouteForSuperTenant.S2: %s, labels: %v", s.SQLAddress, s.Labels)
+		}
 		if filter != nil && filter(s.SQLAddress) {
 			return true
 		}
@@ -86,13 +97,22 @@ func RouteForSuperTenant(
 		}
 		return true
 	})
+	if username == db_holder.MOLoggerUser {
+		logutil.Warnf("RouteForSuperTenant.S2: found: %v", found)
+	}
 	if found {
 		return
 	}
 
 	// S3: Select CN servers which has no labels.
+	if username == db_holder.MOLoggerUser {
+		logutil.Warnf("RouteForSuperTenant.S3: emptyCNs num: %d", len(emptyCNs))
+	}
 	if len(emptyCNs) > 0 {
 		for _, cn := range emptyCNs {
+			if username == db_holder.MOLoggerUser {
+				logutil.Warnf("RouteForSuperTenant.S3: %s, labels: %v", cn.SQLAddress, cn.Labels)
+			}
 			appendFn(cn)
 		}
 		return
@@ -102,6 +122,9 @@ func RouteForSuperTenant(
 	username = strings.ToLower(username)
 	if username == "dump" || username == "root" {
 		mc.GetCNService(clusterservice.NewSelector(), func(s metadata.CNService) bool {
+			if username == db_holder.MOLoggerUser {
+				logutil.Warnf("RouteForSuperTenant.S4: %s, labels: %v", s.SQLAddress, s.Labels)
+			}
 			if filter != nil && filter(s.SQLAddress) {
 				return true
 			}

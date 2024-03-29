@@ -810,6 +810,9 @@ func (c *Compile) removeUnavailableCN() {
 // ensure the current CN is included in the result.
 func (c *Compile) getCNList() (engine.Nodes, error) {
 	cnList, err := c.e.Nodes(c.isInternal, c.tenant, c.uid, c.cnLabel)
+	if c.proc.SessionInfo.User == "mo_logger" {
+		logutil.Warnf("getCNList %v, cnLabel: %v, err: %v", cnList, c.cnLabel, err)
+	}
 	if err != nil {
 		return nil, err
 	}
