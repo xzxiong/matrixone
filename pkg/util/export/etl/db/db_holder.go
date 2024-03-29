@@ -304,7 +304,7 @@ func isStatementExisted(ctx context.Context, db *sql.DB, stmtId string, status s
 var gLabels map[string]string = nil
 
 func SetLabelSelector(labels map[string]string) {
-	labels["account"] = "*"
+	labels["account"] = "sys"
 	gLabels = labels
 }
 
