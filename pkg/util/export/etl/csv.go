@@ -55,12 +55,27 @@ type CSVWriter struct {
 	formatter *csv.Writer
 }
 
+// NewCSVWriter creates a new CSVWriter.
+// @writer is the io.StringWriter to write the CSV data.
 func NewCSVWriter(ctx context.Context, writer io.StringWriter) *CSVWriter {
 	w := &CSVWriter{
 		ctx:       ctx,
 		writer:    writer,
 		buf:       nil,
 		formatter: nil,
+	}
+	return w
+}
+
+// NewCSVWriterWithByteBuffer creates a new CSVWriter with a byte buffer.
+// @buf is the byte buffer to write the CSV data. All data will be written to this buffer.
+// If @buf is nil, a new byte buffer will be created. You only can get the written data by CSVWriter.GetContent before calling CSVWriter.FlushAndClose
+func NewCSVWriterWithByteBuffer(ctx context.Context, buf *bytes.Buffer) *CSVWriter {
+	w := &CSVWriter{
+		ctx:       ctx,
+		writer:    nil,
+		buf:       buf,
+		formatter: csv.NewWriter(buf),
 	}
 	return w
 }
@@ -96,14 +111,16 @@ func (w *CSVWriter) GetContent() string {
 	return w.buf.String()
 }
 
-func (w *CSVWriter) FlushAndClose() (int, error) {
+func (w *CSVWriter) FlushAndClose() (n int, err error) {
 	defer w.releaseBuffer()
 	if w.buf == nil || w.buf.Len() == 0 {
 		return 0, nil
 	}
-	n, err := w.writer.WriteString(util.UnsafeBytesToString(w.buf.Bytes()))
-	if err != nil {
-		return 0, err
+	if w.writer != nil {
+		n, err = w.writer.WriteString(util.UnsafeBytesToString(w.buf.Bytes()))
+		if err != nil {
+			return 0, err
+		}
 	}
 	w.writer = nil
 	w.buf = nil

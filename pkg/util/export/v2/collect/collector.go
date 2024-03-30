@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/util/errutil"
+	"github.com/matrixorigin/matrixone/pkg/util/export/etl"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	v2 "github.com/matrixorigin/matrixone/pkg/util/export/v2"
 	"sync"
@@ -145,6 +146,7 @@ type contentBuffer struct {
 	cancel  context.CancelFunc
 
 	mux         sync.Mutex
+	writer      table.RowWriter
 	buffer      *bytes.Buffer
 	MaxSize     int
 	ReserveSize int
@@ -155,6 +157,7 @@ type contentBuffer struct {
 
 	// from Collector
 	writerFactory table.WriterFactory
+	collector     *CsvExportCollector
 }
 
 type filterFunc func(v2.Item) bool
@@ -178,7 +181,7 @@ func NewContentBuffer(ctx context.Context, opts ...contentBufferOption) *content
 
 	// do init
 	b.stopCtx, b.cancel = context.WithCancel(ctx)
-	b.buffer = bytes.NewBuffer(make([]byte, 0, b.MaxSize+b.ReserveSize))
+
 	// End init
 
 	go b.loop()
@@ -186,63 +189,75 @@ func NewContentBuffer(ctx context.Context, opts ...contentBufferOption) *content
 	return b
 }
 
-func (c *contentBuffer) Push(item v2.Item) {
+func (b *contentBuffer) Push(item v2.Item) {
 	//TODO implement me
 	panic("implement me")
 
-	for _, filter := range c.filters {
+	for _, filter := range b.filters {
 		// TODO: need other way to collect filtered-item
 		if filter(item) {
 			return
 		}
 	}
 
-	c.PushItem(item)
+	b.WriteItem(item)
 }
 
-func (c *contentBuffer) PushItem(item v2.Item) {
-	// TODO implement me
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (b *contentBuffer) WriteItem(item v2.Item) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
 
-	row := item.GetTable().GetRow(c.ctx)
-	item.FillRow(c.ctx, row)
-	account := row.GetAccount()
-	c.writerFactory.GetRowWriter(c.ctx, account, row.Table, ts)
+	if b.buffer == nil {
+		b.buffer = bytes.NewBuffer(make([]byte, 0, b.MaxSize+b.ReserveSize))
+		b.writer = etl.NewCSVWriterWithByteBuffer(b.ctx, b.buffer)
+	}
 
-	// c.WriteBuffer
-	// if c.Full() send write signal, refresh buffer
-	// -	NewWriteRequest(c.buffer)
-	// -	c.buffer = bytes.NewBuffer(make([]byte, 0, c.MaxSize+c.ReserveSize))
+	row := item.GetTable().GetRow(b.ctx)
+	item.FillRow(b.ctx, row)
+	//account := row.GetAccount()
+	//b.writerFactory.GetRowWriter(b.ctx, account, row.Table, ts)
+
+	// b.WriteBuffer
+	b.writer.WriteRow(row)
+	// if b.Full() send write signal, refresh buffer
+	// -	NewWriteRequest(b.buffer)
+	// -	b.buffer = bytes.NewBuffer(make([]byte, 0, b.MaxSize+b.ReserveSize))
+	if b.Full() {
+		b.writer.FlushAndClose()
+		req := NewExportRequest(b.buffer)
+		b.collector.awakeFull <- req
+		b.writer = nil
+		b.buffer = nil
+	}
 }
 
-func (c *contentBuffer) Full() bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	return c.isFull()
+func (b *contentBuffer) Full() bool {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+	return b.isFull()
 }
 
-func (c *contentBuffer) isFull() bool {
-	return c.buffer.Len() > c.MaxSize
+func (b *contentBuffer) isFull() bool {
+	return b.buffer.Len() > b.MaxSize
 }
 
-func (c contentBuffer) willFull(size int) bool {
-	return c.buffer.Len()+size > c.MaxSize
+func (b *contentBuffer) willFull(size int) bool {
+	return b.buffer.Len()+size > b.MaxSize
 }
 
-func (c *contentBuffer) loop() {
-	if len(c.getter) == 0 {
+func (b *contentBuffer) loop() {
+	if len(b.getter) == 0 {
 		return
 	}
 	for {
 		select {
-		case <-c.stopCtx.Done():
+		case <-b.stopCtx.Done():
 			return
-		case <-time.After(c.gatherInterval):
-			for _, g := range c.getter {
+		case <-time.After(b.gatherInterval):
+			for _, g := range b.getter {
 				items := g()
 				for _, item := range items {
-					c.PushItem(item)
+					b.WriteItem(item)
 					// fixme metric counter
 				}
 			}
@@ -269,25 +284,23 @@ func (c *CsvExportCollector) getBuffer(key string) *contentBuffer {
 	return buf
 }
 
+//var _ table.RowWriter = (*exportRequest)(nil)
+
+// exportRequest is bound to contentBuffer.
 type exportRequest struct {
+	buffer *bytes.Buffer
 }
 
-func NewExportRequest() *exportRequest {
-	return &exportRequest{}
+func NewExportRequest(buf *bytes.Buffer) *exportRequest {
+	return &exportRequest{buffer: buf}
 }
 
-func (e *exportRequest) GetName() string {
-	return "export"
+// DoLoad exec `Load data infile...` to write into MO.
+func (r *exportRequest) DoLoad() error {
+	panic("Implement me")
 }
 
-func (e *exportRequest) GetContent() v2.Content {
-	return nil
-}
-
-func (e *exportRequest) GetContentType() string {
-	return "text/csv"
-}
-
-func (e *exportRequest) GetContentEncoding() string {
-	return "utf-8"
+// DoExportFile export file to remote storage, like: S3.
+func (r *exportRequest) DoExportFile() error {
+	panic("Implement me")
 }
