@@ -551,6 +551,7 @@ func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
 	return fields
 }
 
+// @deprecated
 func logInfo(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
@@ -560,6 +561,7 @@ func logInfo(ses *Session, info string, msg string, fields ...zap.Field) {
 	getLogger().Log(msg, log.DefaultLogOptions().WithLevel(zap.InfoLevel).AddCallerSkip(1), fields...)
 }
 
+// @Deprecated
 func logInfof(info string, msg string, fields ...zap.Field) {
 	if logutil.GetSkip1Logger().Core().Enabled(zap.InfoLevel) {
 		fields = append(fields, zap.String("session_info", info))
@@ -567,6 +569,7 @@ func logInfof(info string, msg string, fields ...zap.Field) {
 	}
 }
 
+// @Deprecated
 func logDebug(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
@@ -576,6 +579,7 @@ func logDebug(ses *Session, info string, msg string, fields ...zap.Field) {
 	getLogger().Log(msg, log.DefaultLogOptions().WithLevel(zap.DebugLevel).AddCallerSkip(1), fields...)
 }
 
+// @Deprecated
 func logError(ses *Session, info string, msg string, fields ...zap.Field) {
 	if ses != nil && ses.tenant != nil && ses.tenant.User == db_holder.MOLoggerUser {
 		return
@@ -586,6 +590,7 @@ func logError(ses *Session, info string, msg string, fields ...zap.Field) {
 }
 
 // todo: remove this function after all the logDebugf are replaced by logDebug
+// @Deprecated
 func logDebugf(info string, msg string, fields ...interface{}) {
 	if logutil.GetSkip1Logger().Core().Enabled(zap.DebugLevel) {
 		fields = append(fields, info)

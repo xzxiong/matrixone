@@ -506,7 +506,7 @@ func handleShowTableStatus(ses *Session, stmt *tree.ShowTableStatus, proc *proce
 		mrs.AddRow(row)
 	}
 	if err := ses.GetMysqlProtocol().SendResultSetTextBatchRowSpeedup(mrs, mrs.GetRowCount()); err != nil {
-		logError(ses, ses.GetDebugString(),
+		ses.Errorf(ctx,
 			"Failed to handle 'SHOW TABLE STATUS'",
 			zap.Error(err))
 		return err
@@ -2975,7 +2975,7 @@ func (mce *MysqlCmdExecutor) processLoadLocal(ctx context.Context, param *tree.E
 	_, err = writer.Write(packet.Payload)
 	if err != nil {
 		skipWrite = true // next, we just need read the rest of the data,no need to write it to pipe.
-		logError(ses, ses.GetDebugString(),
+		ses.Errorf(ctx,
 			"Failed to load local file",
 			zap.String("path", param.Filepath),
 			zap.Error(err))
@@ -3014,7 +3014,7 @@ func (mce *MysqlCmdExecutor) processLoadLocal(ctx context.Context, param *tree.E
 		if !skipWrite {
 			_, err = writer.Write(packet.Payload)
 			if err != nil {
-				logError(ses, ses.GetDebugString(),
+				ses.Errorf(ctx,
 					"Failed to load local file",
 					zap.String("path", param.Filepath),
 					zap.Uint64("epoch", epoch),
@@ -3279,7 +3279,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 		if ses.InMultiStmtTransactionMode() && ses.InActiveTransaction() {
 			ses.cleanCache()
 		}
-		logError(ses, ses.GetDebugString(), err.Error())
+		ses.Errorf(requestCtx, err.Error())
 		txnErr := ses.TxnRollbackSingleStatement(stmt, err)
 		if txnErr != nil {
 			logStatementStatus(requestCtx, ses, stmt, fail, txnErr)
@@ -3355,7 +3355,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 		var err3 error
 		_, txnOp, err3 = ses.GetTxnHandler().GetTxnOperator()
 		if err3 != nil {
-			logError(ses, ses.GetDebugString(), err3.Error())
+			ses.Errorf(requestCtx, err3.Error())
 			return
 		}
 		//non derived statement
@@ -3851,7 +3851,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 	// only log if build time is longer than 1s
 	if time.Since(cmpBegin) > time.Second {
-		logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Build : %s", time.Since(cmpBegin).String()))
+		ses.Infof(requestCtx, "time of Exec.Build : %s", time.Since(cmpBegin).String())
 	}
 
 	mrs = ses.GetMysqlResultSet()
@@ -3864,7 +3864,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 			columns, err = cw.GetColumns()
 			if err != nil {
-				logError(ses, ses.GetDebugString(),
+				ses.Errorf(requestCtx,
 					"Failed to get columns from computation handler",
 					zap.Error(err))
 				return
@@ -3893,7 +3893,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 			// only log if run time is longer than 1s
 			if time.Since(runBegin) > time.Second {
-				logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+				ses.Infof(requestCtx, "time of Exec.Run : %s", time.Since(runBegin).String())
 			}
 
 			oq := NewOutputQueue(ses.GetRequestContext(), ses, 0, nil, nil)
@@ -3912,7 +3912,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 		} else {
 			columns, err = cw.GetColumns()
 			if err != nil {
-				logError(ses, ses.GetDebugString(),
+				ses.Errorf(requestCtx,
 					"Failed to get columns from computation handler",
 					zap.Error(err))
 				return
@@ -3972,7 +3972,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 			// only log if run time is longer than 1s
 			if time.Since(runBegin) > time.Second {
-				logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+				ses.Infof(requestCtx, "time of Exec.Run : %s", time.Since(runBegin).String())
 			}
 
 		}
@@ -3984,7 +3984,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 		*tree.ShowPublications, *tree.ShowCreatePublications, *tree.ShowStages, *tree.ShowSnapShots, *tree.ShowAccountUpgrade:
 		columns, err = cw.GetColumns()
 		if err != nil {
-			logError(ses, ses.GetDebugString(),
+			ses.Errorf(requestCtx,
 				"Failed to get columns from computation handler",
 				zap.Error(err))
 			return
@@ -4051,7 +4051,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 		// only log if run time is longer than 1s
 		if time.Since(runBegin) > time.Second {
-			logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+			ses.Infof(requestCtx, "time of Exec.Run : %s", time.Since(runBegin).String())
 		}
 
 	//just status, no result set
@@ -4095,13 +4095,13 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 			if loadLocalErrGroup != nil { // release resources
 				err2 := proc.LoadLocalReader.Close()
 				if err2 != nil {
-					logError(ses, ses.GetDebugString(),
+					ses.Errorf(requestCtx,
 						"processLoadLocal goroutine failed",
 						zap.Error(err2))
 				}
 				err2 = loadLocalErrGroup.Wait() // executor failed, but processLoadLocal is still running, wait for it
 				if err2 != nil {
-					logError(ses, ses.GetDebugString(),
+					ses.Errorf(requestCtx,
 						"processLoadLocal goroutine failed",
 						zap.Error(err2))
 				}
@@ -4135,7 +4135,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 		// only log if run time is longer than 1s
 		if time.Since(runBegin) > time.Second {
-			logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+			ses.Infof(requestCtx, "time of Exec.Run : %s", time.Since(runBegin).String())
 		}
 
 		echoTime := time.Now()
@@ -4146,7 +4146,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 		explainColName := "QUERY PLAN"
 		columns, err = GetExplainColumns(requestCtx, explainColName)
 		if err != nil {
-			logError(ses, ses.GetDebugString(),
+			ses.Errorf(requestCtx,
 				"Failed to get columns from ExplainColumns handler",
 				zap.Error(err))
 			return
@@ -4200,7 +4200,7 @@ func (mce *MysqlCmdExecutor) executeStmt(requestCtx context.Context,
 
 		// only log if run time is longer than 1s
 		if time.Since(runBegin) > time.Second {
-			logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+			ses.Infof(requestCtx, "time of Exec.Run : %s", time.Since(runBegin).String())
 		}
 
 		if cwft, ok := cw.(*TxnComputationWrapper); ok {
