@@ -534,6 +534,7 @@ func initLogger() {
 	logger = rt.Logger().Named("frontend")
 }
 
+// appendSessionField append session id, transaction id and statement id to the fields
 func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
 	if ses != nil {
 		if ses.tStmt != nil {
