@@ -19,8 +19,8 @@ Project
         Sort Key: statement_info.request_at DESC
         Limit: 20
         ->  Table Scan on system.statement_info
-              Filter Cond: (statement_info.request_at >= from_unixtime(1712599200)), (statement_info.request_at <= from_unixtime(1712602799)), (statement_info.account = 'sys'), (true or (statement_info.query_type = 'ALL')), (true or (statement_info.statement_id = '')), (true or (statement_info.session_id = '')), (true or (statement_info.node_uuid = '')), (true or (statement_info.status = 'ALL')), (true or (statement_info.sql_source_type = 'ALL'))
-              Block Filter Cond: (statement_info.request_at >= from_unixtime(1712599200)), (statement_info.request_at <= from_unixtime(1712602799))
+              Filter Cond: statement_info.request_at BETWEEN 2024-04-09 02:00:00 AND 2024-04-09 02:59:59, (statement_info.account = 'sys'), (true or (statement_info.query_type = 'ALL')), (true or (statement_info.statement_id = '')), (true or (statement_info.session_id = '')), (true or (statement_info.node_uuid = '')), (true or (statement_info.status = 'ALL')), (true or (statement_info.sql_source_type = 'ALL'))
+              Block Filter Cond: statement_info.request_at BETWEEN 2024-04-09 02:00:00 AND 2024-04-09 02:59:59
 select 1;
 1
 1
