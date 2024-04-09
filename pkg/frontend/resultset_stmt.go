@@ -17,7 +17,6 @@ package frontend
 import (
 	"context"
 
-	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/sql/parsers/tree"
 )
 
@@ -37,7 +36,7 @@ func (rsse *resultSetStmtExecutor) ResponseBeforeExec(ctx context.Context, ses *
 
 	columns, err = rsse.GetColumns()
 	if err != nil {
-		logutil.Errorf("GetColumns from Computation handler failed. error: %v", err)
+		ses.Errorf(ctx, "GetColumns from Computation handler failed. error: %v", err)
 		return err
 	}
 	/*

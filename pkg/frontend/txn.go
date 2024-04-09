@@ -366,7 +366,7 @@ func (th *TxnHandler) CommitTxn() error {
 	}
 	if txnOp == nil {
 		th.SetTxnOperatorInvalid()
-		logError(ses, sessionInfo, "CommitTxn: txn operator is null")
+		ses.Errorf(ses.requestCtx, "CommitTxn: txn operator is null")
 	}
 	if txnCtx == nil {
 		panic("context should not be nil")
@@ -398,9 +398,9 @@ func (th *TxnHandler) CommitTxn() error {
 
 	if logutil.GetSkip1Logger().Core().Enabled(zap.DebugLevel) {
 		txnId := txnOp.Txn().DebugString()
-		logDebugf(sessionInfo, "CommitTxn txnId:%s", txnId)
+		ses.Errorf(ses.requestCtx, "CommitTxn txnId:%s", txnId)
 		defer func() {
-			logDebugf(sessionInfo, "CommitTxn exit txnId:%s", txnId)
+			ses.Errorf(ses.requestCtx, "CommitTxn exit txnId:%s", txnId)
 		}()
 	}
 	if txnOp != nil {
