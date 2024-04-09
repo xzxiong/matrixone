@@ -484,14 +484,15 @@ func mergeStats(e, n *StatementInfo) error {
 	return nil
 }
 
+var noExecPlan = []byte(`{"code":200,"message":"NO ExecPlan Serialize function","steps":null}`)
+
 // ExecPlan2Json return ExecPlan Serialized json-str //
 // please used in s.mux.Lock()
 func (s *StatementInfo) ExecPlan2Json(ctx context.Context) []byte {
 	if s.jsonByte != nil {
 		goto endL
 	} else if s.ExecPlan == nil {
-		uuidStr := uuid.UUID(s.StatementID).String()
-		return []byte(fmt.Sprintf(`{"code":200,"message":"NO ExecPlan Serialize function","steps":null,"uuid":%q}`, uuidStr))
+		return noExecPlan
 	} else {
 		s.jsonByte = s.ExecPlan.Marshal(ctx)
 		//if queryTime := GetTracerProvider().longQueryTime; queryTime > int64(s.Duration) {
@@ -615,12 +616,17 @@ func (s *StatementInfo) EndStatement(ctx context.Context, err error, sentRows in
 		s.ResultCount = sentRows
 		s.AggrCount = 0
 		s.MarkResponseAt()
+		// --- Start of metric part
 		// duration is filled in s.MarkResponseAt()
+		incStatementCounter(s.Account, s.QueryType)
 		addStatementDurationCounter(s.Account, s.QueryType, s.Duration)
+		// --- END of metric part
 		if err != nil {
 			outBytes += ResponseErrPacketSize + int64(len(err.Error()))
 		}
-		outBytes += TcpIpv4HeaderSize * outPacket
+		if GetTracerProvider().tcpPacket {
+			outBytes += TcpIpv4HeaderSize * outPacket
+		}
 		s.statsArray.InitIfEmpty().WithOutTrafficBytes(float64(outBytes)).WithOutPacketCount(float64(outPacket))
 		s.ExecPlan2Stats(ctx)
 		if s.statsArray.GetCU() < 0 {
@@ -641,8 +647,11 @@ func (s *StatementInfo) EndStatement(ctx context.Context, err error, sentRows in
 	}
 }
 
-func addStatementDurationCounter(tenant, querytype string, duration time.Duration) {
-	metric.StatementDuration(tenant, querytype).Add(float64(duration))
+func addStatementDurationCounter(tenant, queryType string, duration time.Duration) {
+	metric.StatementDuration(tenant, queryType).Add(float64(duration))
+}
+func incStatementCounter(tenant, queryType string) {
+	metric.StatementCounter(tenant, queryType).Inc()
 }
 
 type StatementInfoStatus int

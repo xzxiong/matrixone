@@ -461,7 +461,7 @@ func (tbl *txnTable) LoadDeletesForBlock(bid types.Blockid, offsets *[]int64) (e
 			if err != nil {
 				return err
 			}
-			rowIdBat, err := blockio.LoadTombstoneColumns(
+			rowIdBat, release, err := blockio.LoadTombstoneColumns(
 				tbl.db.txn.proc.Ctx,
 				[]uint16{0},
 				nil,
@@ -471,6 +471,7 @@ func (tbl *txnTable) LoadDeletesForBlock(bid types.Blockid, offsets *[]int64) (e
 			if err != nil {
 				return err
 			}
+			defer release()
 			rowIds := vector.MustFixedCol[types.Rowid](rowIdBat.GetVector(0))
 			for _, rowId := range rowIds {
 				_, offset := rowId.Decode()
@@ -501,7 +502,7 @@ func (tbl *txnTable) LoadDeletesForMemBlocksIn(
 				if err != nil {
 					return err
 				}
-				rowIdBat, err := blockio.LoadTombstoneColumns(
+				rowIdBat, release, err := blockio.LoadTombstoneColumns(
 					tbl.db.txn.proc.Ctx,
 					[]uint16{0},
 					nil,
@@ -511,13 +512,13 @@ func (tbl *txnTable) LoadDeletesForMemBlocksIn(
 				if err != nil {
 					return err
 				}
+				defer release()
 				rowIds := vector.MustFixedCol[types.Rowid](rowIdBat.GetVector(0))
 				for _, rowId := range rowIds {
 					if deletesRowId != nil {
 						deletesRowId[rowId] = 0
 					}
 				}
-				rowIdBat.Clean(tbl.db.txn.proc.GetMPool())
 			}
 		}
 
@@ -581,6 +582,9 @@ func (tbl *txnTable) Ranges(ctx context.Context, exprs []*plan.Expr) (ranges eng
 		v2.TxnTableRangeDurationHistogram.Observe(cost.Seconds())
 	}()
 
+	var blocks objectio.BlockInfoSlice
+	ranges = &blocks
+
 	// make sure we have the block infos snapshot
 	if err = tbl.UpdateObjectInfos(ctx); err != nil {
 		return
@@ -592,7 +596,6 @@ func (tbl *txnTable) Ranges(ctx context.Context, exprs []*plan.Expr) (ranges eng
 		return
 	}
 
-	var blocks objectio.BlockInfoSlice
 	blocks.AppendBlockInfo(objectio.EmptyBlockInfo)
 
 	if err = tbl.rangesOnePart(
@@ -605,7 +608,7 @@ func (tbl *txnTable) Ranges(ctx context.Context, exprs []*plan.Expr) (ranges eng
 	); err != nil {
 		return
 	}
-	ranges = &blocks
+
 	return
 }
 
@@ -888,7 +891,7 @@ func (tbl *txnTable) tryFastFilterBlocks(
 	outBlocks *objectio.BlockInfoSlice,
 	fs fileservice.FileService) (done bool, err error) {
 	// TODO: refactor this code if composite key can be pushdown
-	if tbl.tableDef.Pkey == nil || tbl.tableDef.Pkey.CompPkeyCol == nil {
+	if tbl.tableDef.Pkey.CompPkeyCol == nil {
 		return TryFastFilterBlocks(
 			tbl.db.txn.op.SnapshotTS(),
 			tbl.tableDef,
@@ -1053,7 +1056,8 @@ func (tbl *txnTable) tryFastRanges(
 				}
 				var exist bool
 				if isVec {
-					if exist = blkBfIdx.MayContainsAny(vec); !exist {
+					lowerBound, upperBound := zm.SubVecIn(vec)
+					if exist = blkBfIdx.MayContainsAny(vec, lowerBound, upperBound); !exist {
 						continue
 					}
 				} else {
@@ -1384,6 +1388,7 @@ func (tbl *txnTable) TableRenameInTxn(ctx context.Context, constraint [][]byte) 
 	}
 	databaseId := tbl.GetDBID(ctx)
 	db := tbl.db
+	oldTableName := tbl.tableName
 
 	var id uint64
 	var rowid types.Rowid
@@ -1548,6 +1553,21 @@ func (tbl *txnTable) TableRenameInTxn(ctx context.Context, constraint [][]byte) 
 	newkey := genTableKey(accountId, newtbl.tableName, databaseId)
 	newtbl.db.txn.addCreateTable(newkey, newtbl)
 	newtbl.db.txn.deletedTableMap.Delete(newkey)
+
+	//---------------------------------------------------------------------------------
+	for i := 0; i < len(newtbl.db.txn.writes); i++ {
+		if newtbl.db.txn.writes[i].tableId == catalog.MO_DATABASE_ID ||
+			newtbl.db.txn.writes[i].tableId == catalog.MO_TABLES_ID ||
+			newtbl.db.txn.writes[i].tableId == catalog.MO_COLUMNS_ID {
+			continue
+		}
+
+		if newtbl.db.txn.writes[i].tableName == oldTableName {
+			newtbl.db.txn.writes[i].tableName = tbl.tableName
+			logutil.Infof("copy table '%s' has been rename to '%s' in txn", oldTableName, tbl.tableName)
+		}
+	}
+	//---------------------------------------------------------------------------------
 	return nil
 }
 
@@ -1745,7 +1765,7 @@ func (tbl *txnTable) Delete(ctx context.Context, bat *batch.Batch, name string) 
 	return tbl.writeTnPartition(ctx, bat)
 }
 
-func (tbl *txnTable) writeTnPartition(ctx context.Context, bat *batch.Batch) error {
+func (tbl *txnTable) writeTnPartition(_ context.Context, bat *batch.Batch) error {
 	ibat, err := util.CopyBatch(bat, tbl.db.txn.proc)
 	if err != nil {
 		return err
@@ -1960,7 +1980,6 @@ func (tbl *txnTable) newBlockReader(
 		ctx,
 		fs,
 		tableDef,
-		tbl.primarySeqnum,
 		ts,
 		num,
 		expr,
@@ -2073,7 +2092,6 @@ func (tbl *txnTable) newReader(
 		ctx,
 		fs,
 		tbl.tableDef,
-		-1,
 		ts,
 		readerNumber-1,
 		expr,
@@ -2271,7 +2289,8 @@ func (tbl *txnTable) PKPersistedBetween(
 							return false
 						}
 						var exist bool
-						if exist = blkBfIdx.MayContainsAny(keys); !exist {
+						lowerBound, upperBound := blkMeta.MustGetColumn(uint16(primaryIdx)).ZoneMap().SubVecIn(keys)
+						if exist = blkBfIdx.MayContainsAny(keys, lowerBound, upperBound); !exist {
 							return true
 						}
 					}
@@ -2301,7 +2320,7 @@ func (tbl *txnTable) PKPersistedBetween(
 	pkSeq := pkDef.Seqnum
 	pkType := types.T(pkDef.Typ.Id).ToType()
 	for _, blk := range candidateBlks {
-		bat, err := blockio.LoadColumns(
+		bat, release, err := blockio.LoadColumns(
 			ctx,
 			[]uint16{uint16(pkSeq)},
 			[]types.Type{pkType},
@@ -2313,6 +2332,7 @@ func (tbl *txnTable) PKPersistedBetween(
 		if err != nil {
 			return true, err
 		}
+		defer release()
 
 		colExpr := newColumnExpr(0, plan2.MakePlan2Type(keys.GetType()), "pk")
 
@@ -2328,7 +2348,6 @@ func (tbl *txnTable) PKPersistedBetween(
 		_, _, filter := getNonCompositePKSearchFuncByExpr(
 			inExpr,
 			"pk",
-			keys.GetType().Oid,
 			tbl.proc.Load())
 		sels := filter(bat.Vecs)
 		if len(sels) > 0 {
@@ -2376,7 +2395,8 @@ func (tbl *txnTable) PrimaryKeysMayBeModified(
 		keysVector)
 }
 
-func (tbl *txnTable) transferRowid(
+// TODO::refactor in next PR
+func (tbl *txnTable) transferDeletes(
 	ctx context.Context,
 	state *logtailreplay.PartitionState,
 	deleteObjs,
@@ -2468,10 +2488,8 @@ func (tbl *txnTable) transferRowid(
 				}
 			}
 			if beTransfered != toTransfer {
-				logutil.Fatalf("xxxx transfer rowid failed,beTransfered:%d, toTransfer:%d, total %d",
-					beTransfered, toTransfer, len(rowids))
+				return moerr.NewInternalErrorNoCtx("transfer deletes failed")
 			}
-
 		}
 	}
 	return nil
