@@ -16,7 +16,6 @@ package frontend
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -212,7 +211,7 @@ func Execute(ctx context.Context, ses *Session, proc *process.Process, stmtExec 
 
 	// only log if time of compile is longer than 1s
 	if time.Since(cmpBegin) > time.Second {
-		logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Build : %s", time.Since(cmpBegin).String()))
+		ses.Infof(ctx, "time of Exec.Build : %s", time.Since(cmpBegin).String())
 	}
 
 	err = stmtExec.ResponseBeforeExec(ctx, ses)
@@ -229,7 +228,7 @@ func Execute(ctx context.Context, ses *Session, proc *process.Process, stmtExec 
 
 	// only log if time of run is longer than 1s
 	if time.Since(runBegin) > time.Second {
-		logInfo(ses, ses.GetDebugString(), fmt.Sprintf("time of Exec.Run : %s", time.Since(runBegin).String()))
+		ses.Infof(ctx, "time of Exec.Run : %s", time.Since(runBegin).String())
 	}
 
 handleRet:
@@ -306,7 +305,7 @@ func (bse *baseStmtExecutor) CommitOrRollbackTxn(ctx context.Context, ses *Sessi
 		if ses.InMultiStmtTransactionMode() && ses.InActiveTransaction() {
 			ses.SetOptionBits(OPTION_ATTACH_ABORT_TRANSACTION_ERROR)
 		}
-		logError(ses, ses.GetDebugString(), bse.err.Error())
+		ses.Error(ctx, bse.err.Error())
 		txnErr = ses.TxnRollbackSingleStatement(stmt, nil)
 		if txnErr != nil {
 			incTransactionErrorsCounter(tenant, metric.SQLTypeRollback)
