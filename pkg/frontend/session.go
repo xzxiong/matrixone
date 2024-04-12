@@ -783,7 +783,7 @@ func NewBackgroundSession(reqCtx context.Context, upstream *Session, mp *mpool.M
 	if stmt := ses.tStmt; stmt != nil {
 		// Reset background session id as frontend stmt id
 		ses.uuid = uuid.UUID(stmt.StatementID).String()
-		logutil.Debugf("session uuid: %s -> background session uuid: %s", stmt.SessionID, ses.uuid)
+		upstream.Debugf(reqCtx, "new background session uuid: %s", ses.uuid)
 	}
 	cancelBackgroundCtx, cancelBackgroundFunc := context.WithCancel(reqCtx)
 	ses.SetRequestContext(cancelBackgroundCtx)
@@ -2113,9 +2113,9 @@ func executeSQLInBackgroundSession(
 	sql string) ([]ExecResult, error) {
 	bh := NewBackgroundHandler(reqCtx, upstream, mp, pu)
 	defer bh.Close()
-	logutil.Debugf("background exec sql:%v", sql)
+	upstream.Debugf(reqCtx, "background exec sql:%v", sql)
 	err := bh.Exec(reqCtx, sql)
-	logutil.Debugf("background exec sql done")
+	upstream.Debugf(reqCtx, "background exec sql done")
 	if err != nil {
 		return nil, err
 	}
@@ -2159,7 +2159,8 @@ func executeStmtInSameSession(ctx context.Context, mce *MysqlCmdExecutor, ses *S
 		ses.SetOutputCallback(getDataFromPipeline)
 		ses.ReplaceProtocol(prevProto)
 	}()
-	logDebug(ses, ses.GetDebugString(), "query trace(ExecStmtInSameSession)",
+	ses.Debug(ctx,
+		"query trace(ExecStmtInSameSession)",
 		logutil.ConnectionIdField(ses.GetConnectionID()))
 	//3. execute the statement
 	return mce.GetDoQueryFunc()(ctx, &UserInput{stmt: stmt})
@@ -2233,7 +2234,7 @@ func (bh *BackgroundHandler) Exec(ctx context.Context, sql string) error {
 			}
 		}
 	}
-	logDebug(bh.mce.GetSession(), bh.ses.GetDebugString(), "query trace(backgroundExecSql)",
+	bh.ses.Debug(ctx, "query trace(backgroundExecSql)",
 		logutil.ConnectionIdField(bh.ses.GetConnectionID()),
 		logutil.QueryField(SubStringFromBegin(sql, int(bh.ses.GetParameterUnit().SV.LengthOfQueryPrinted))))
 	return bh.mce.GetDoQueryFunc()(ctx, &UserInput{sql: sql})
@@ -2263,7 +2264,7 @@ func (bh *BackgroundHandler) ExecStmt(ctx context.Context, stmt tree.Statement) 
 			return moerr.NewInternalError(ctx, "Exec() can not run transaction statement in share transaction")
 		}
 	}
-	logDebug(bh.ses.Session, bh.ses.GetDebugString(), "query trace(backgroundExecStmt)",
+	bh.ses.Debug(ctx, "query trace(backgroundExecStmt)",
 		logutil.ConnectionIdField(bh.ses.GetConnectionID()))
 	return bh.mce.GetDoQueryFunc()(ctx, &UserInput{stmt: stmt})
 }
