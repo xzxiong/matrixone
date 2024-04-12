@@ -34,7 +34,6 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/defines"
 
 	"github.com/BurntSushi/toml"
-	"github.com/google/uuid"
 	"github.com/matrixorigin/matrixone/pkg/common/log"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	moruntime "github.com/matrixorigin/matrixone/pkg/common/runtime"
@@ -538,14 +537,14 @@ func initLogger() {
 func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
 	if ses != nil {
 		if ses.tStmt != nil {
-			fields = append(fields, zap.String(sessionId, uuid.UUID(ses.tStmt.SessionID).String()))
-			fields = append(fields, zap.String(statementId, uuid.UUID(ses.tStmt.StatementID).String()))
+			fields = append(fields, zap.ByteString(sessionId, ses.tStmt.SessionID[:]))
+			fields = append(fields, zap.ByteString(statementId, ses.tStmt.StatementID[:]))
 			txnInfo := ses.GetTxnInfo()
 			if txnInfo != "" {
 				fields = append(fields, zap.String(txnId, txnInfo))
 			}
 		} else {
-			fields = append(fields, zap.String(sessionId, uuid.UUID(ses.GetUUID()).String()))
+			fields = append(fields, zap.ByteString(sessionId, ses.GetUUID()))
 		}
 	}
 	return fields
