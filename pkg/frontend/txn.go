@@ -359,7 +359,6 @@ func (th *TxnHandler) CommitTxn() error {
 		return nil
 	}
 	ses := th.GetSession()
-	sessionInfo := ses.GetDebugString()
 	txnCtx, txnOp, err := th.GetTxnOperator()
 	if err != nil {
 		return err
@@ -409,7 +408,7 @@ func (th *TxnHandler) CommitTxn() error {
 		if err != nil {
 			txnId := txnOp.Txn().DebugString()
 			th.SetTxnOperatorInvalid()
-			logError(ses, sessionInfo,
+			ses.Error(ctx2,
 				"CommitTxn: txn operator commit failed",
 				zap.String("txnId", txnId),
 				zap.Error(err))
@@ -432,16 +431,15 @@ func (th *TxnHandler) RollbackTxn() error {
 		return nil
 	}
 	ses := th.GetSession()
-	sessionInfo := ses.GetDebugString()
 	txnCtx, txnOp, err := th.GetTxnOperator()
 	if err != nil {
 		return err
 	}
 	if txnOp == nil {
 		th.SetTxnOperatorInvalid()
-		logError(ses, ses.GetDebugString(),
+		ses.Error(txnCtx,
 			"RollbackTxn: txn operator is null",
-			zap.String("sessionInfo", sessionInfo))
+		)
 	}
 	if txnCtx == nil {
 		panic("context should not be nil")
@@ -466,9 +464,9 @@ func (th *TxnHandler) RollbackTxn() error {
 	}()
 	if logutil.GetSkip1Logger().Core().Enabled(zap.DebugLevel) {
 		txnId := txnOp.Txn().DebugString()
-		logDebugf(sessionInfo, "RollbackTxn txnId:%s", txnId)
+		ses.Debugf(ctx2, "RollbackTxn txnId:%s", txnId)
 		defer func() {
-			logDebugf(sessionInfo, "RollbackTxn exit txnId:%s", txnId)
+			ses.Debugf(ctx2, "RollbackTxn exit txnId:%s", txnId)
 		}()
 	}
 	if txnOp != nil {
@@ -477,7 +475,7 @@ func (th *TxnHandler) RollbackTxn() error {
 		if err != nil {
 			txnId := txnOp.Txn().DebugString()
 			th.SetTxnOperatorInvalid()
-			logError(ses, ses.GetDebugString(),
+			ses.Error(ctx2,
 				"RollbackTxn: txn operator commit failed",
 				zap.String("txnId", txnId),
 				zap.Error(err))
@@ -498,7 +496,7 @@ func (th *TxnHandler) GetTxn() (context.Context, TxnOperator, error) {
 	ses := th.GetSession()
 	txnCtx, txnOp, err := ses.TxnCreate()
 	if err != nil {
-		logError(ses, ses.GetDebugString(),
+		ses.Error(ses.GetRequestContext(),
 			"Failed to get transaction",
 			zap.Error(err))
 		return nil, nil, err
@@ -778,7 +776,7 @@ func (ses *Session) TxnRollbackSingleStatement(stmt tree.Statement, inputErr err
 		var err3 error
 		txnCtx, txnOp, err3 := ses.GetTxnHandler().GetTxnOperator()
 		if err3 != nil {
-			logError(ses, ses.GetDebugString(), err3.Error())
+			ses.Error(ses.GetRequestContext(), err3.Error())
 			return err3
 		}
 
