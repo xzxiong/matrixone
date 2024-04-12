@@ -44,7 +44,7 @@ type MOZapLog struct {
 	Message     string   `json:"message"`
 	Extra       string   `json:"extra"` // like json text
 	Stack       string   `json:"stack"`
-	SessionID   [16]byte `json:"session_id"`
+	SessionID   string   `json:"session_id"`
 	StatementID [16]byte `json:"statement_id"`
 }
 
@@ -88,6 +88,8 @@ func (m *MOZapLog) Free() {
 	m.Caller = ""
 	m.Message = ""
 	m.Extra = ""
+	m.SessionID = ""
+	m.StatementID = NilStmtID
 	logPool.Put(m)
 }
 
@@ -112,8 +114,8 @@ func (m *MOZapLog) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(messageCol, table.StringField(m.Message))
 	row.SetColumnVal(extraCol, table.StringField(m.Extra))
 	row.SetColumnVal(stackCol, table.StringField(m.Stack))
-	if m.SessionID != [16]byte{} {
-		row.SetColumnVal(sessionIDCol, table.UuidField(m.SessionID[:]))
+	if m.SessionID != "" {
+		row.SetColumnVal(sessionIDCol, table.StringField(m.SessionID))
 	}
 	if m.StatementID != [16]byte{} {
 		row.SetColumnVal(statementIDCol, table.UuidField(m.StatementID[:]))
@@ -154,14 +156,17 @@ func ReportZap(jsonEncoder zapcore.Encoder, entry zapcore.Entry, fields []zapcor
 			continue
 		}
 
-		if v.Type == zapcore.ByteStringType {
+		if v.Type == zapcore.StringType {
 			if v.Key == sessionId {
-				copy(log.SessionID[:], v.Interface.([]byte))
+				log.SessionID = v.String
 				if idx <= endIdx {
 					fields[idx], fields[endIdx] = fields[endIdx], fields[idx]
 					endIdx--
 				}
-			} else if v.Key == statementId {
+			}
+		}
+		if v.Type == zapcore.ByteStringType {
+			if v.Key == statementId {
 				copy(log.StatementID[:], v.Interface.([]byte))
 				if idx <= endIdx {
 					fields[idx], fields[endIdx] = fields[endIdx], fields[idx]
