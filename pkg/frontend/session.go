@@ -2611,6 +2611,19 @@ func (ses *Session) Migrate(req *query.MigrateConnToRequest) error {
 	return nil
 }
 
+type SessionLogger interface {
+	Info(ctx context.Context, msg string, fields ...zap.Field)
+	Error(ctx context.Context, msg string, fields ...zap.Field)
+	Debug(ctx context.Context, msg string, fields ...zap.Field)
+	Infof(ctx context.Context, msg string, args ...any)
+	Errorf(ctx context.Context, msg string, args ...any)
+	Debugf(ctx context.Context, msg string, args ...any)
+}
+
+func (ses *Session) GetLogger() SessionLogger {
+	return ses
+}
+
 func (ses *Session) Info(ctx context.Context, msg string, fields ...zap.Field) {
 	if ses.logger.Enabled(zap.InfoLevel) {
 		fields = append(fields, zap.String("session_info", ses.GetDebugString()))

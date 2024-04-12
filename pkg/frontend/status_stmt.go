@@ -19,7 +19,6 @@ import (
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/container/batch"
-	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/sql/parsers/tree"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
 )
@@ -532,7 +531,7 @@ func (le *LoadExecutor) CommitOrRollbackTxn(ctx context.Context, ses *Session) e
 		if ses.InMultiStmtTransactionMode() && ses.InActiveTransaction() {
 			ses.SetOptionBits(OPTION_ATTACH_ABORT_TRANSACTION_ERROR)
 		}
-		logutil.Error(le.err.Error())
+		ses.Error(ctx, le.err.Error())
 		logStatementStatus(ctx, ses, stmt, fail, le.err)
 	}
 	return nil
