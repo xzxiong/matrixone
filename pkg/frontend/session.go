@@ -2162,7 +2162,7 @@ func executeStmtInSameSession(ctx context.Context, mce *MysqlCmdExecutor, ses *S
 	}()
 	ses.Debug(ctx,
 		"query trace(ExecStmtInSameSession)",
-		logutil.ConnectionIdField(ses.GetConnectionID()))
+	)
 	//3. execute the statement
 	return mce.GetDoQueryFunc()(ctx, &UserInput{stmt: stmt})
 }
@@ -2236,7 +2236,6 @@ func (bh *BackgroundHandler) Exec(ctx context.Context, sql string) error {
 		}
 	}
 	bh.ses.Debug(ctx, "query trace(backgroundExecSql)",
-		logutil.ConnectionIdField(bh.ses.GetConnectionID()),
 		logutil.QueryField(SubStringFromBegin(sql, int(bh.ses.GetParameterUnit().SV.LengthOfQueryPrinted))))
 	return bh.mce.GetDoQueryFunc()(ctx, &UserInput{sql: sql})
 }
@@ -2265,8 +2264,7 @@ func (bh *BackgroundHandler) ExecStmt(ctx context.Context, stmt tree.Statement) 
 			return moerr.NewInternalError(ctx, "Exec() can not run transaction statement in share transaction")
 		}
 	}
-	bh.ses.Debug(ctx, "query trace(backgroundExecStmt)",
-		logutil.ConnectionIdField(bh.ses.GetConnectionID()))
+	bh.ses.Debug(ctx, "query trace(backgroundExecStmt)")
 	return bh.mce.GetDoQueryFunc()(ctx, &UserInput{stmt: stmt})
 }
 
