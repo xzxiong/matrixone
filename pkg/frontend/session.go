@@ -173,7 +173,7 @@ type Session struct {
 
 	tenant *TenantInfo
 
-	uuid uuid.UUID
+	uuid string
 
 	timeZone *time.Location
 
@@ -650,7 +650,8 @@ func NewSession(proto Protocol, mp *mpool.MPool, pu *config.ParameterUnit,
 	ses.buf = buffer.New()
 	ses.isNotBackgroundSession = isNotBackgroundSession
 	ses.sqlHelper = &SqlHelper{ses: ses}
-	ses.uuid, _ = uuid.NewV7()
+	uuid, _ := uuid.NewV7()
+	ses.uuid = uuid.String()
 	ses.SetOptionBits(OPTION_AUTOCOMMIT)
 	ses.GetTxnCompileCtx().SetSession(ses)
 	ses.GetTxnHandler().SetSession(ses)
@@ -781,8 +782,8 @@ func NewBackgroundSession(reqCtx context.Context, upstream *Session, mp *mpool.M
 	ses.SetOutputCallback(fakeDataSetFetcher)
 	if stmt := ses.tStmt; stmt != nil {
 		// Reset background session id as frontend stmt id
-		ses.uuid = stmt.StatementID
-		logutil.Debugf("session uuid: %s -> background session uuid: %s", uuid.UUID(stmt.SessionID).String(), ses.uuid.String())
+		ses.uuid = uuid.UUID(stmt.StatementID).String()
+		logutil.Debugf("session uuid: %s -> background session uuid: %s", stmt.SessionID, ses.uuid)
 	}
 	cancelBackgroundCtx, cancelBackgroundFunc := context.WithCancel(reqCtx)
 	ses.SetRequestContext(cancelBackgroundCtx)
@@ -887,11 +888,11 @@ func (ses *Session) UpdateDebugString() {
 		sb.WriteByte('|')
 	}
 	//session id
-	sb.WriteString(ses.uuid.String())
+	sb.WriteString(ses.uuid)
 	//upstream sessionid
 	if ses.upstream != nil {
 		sb.WriteByte('|')
-		sb.WriteString(ses.upstream.uuid.String())
+		sb.WriteString(ses.upstream.uuid)
 	}
 
 	ses.debugStr = sb.String()
@@ -1265,16 +1266,14 @@ func (ses *Session) GetTenantName() string {
 	return ses.GetTenantNameWithStmt(nil)
 }
 
-func (ses *Session) GetUUID() []byte {
+func (ses *Session) GetUUID() string {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	return ses.uuid[:]
+	return ses.uuid
 }
 
 func (ses *Session) GetUUIDString() string {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
-	return ses.uuid.String()
+	return ses.GetUUID()
 }
 
 func (ses *Session) SetTenantInfo(ti *TenantInfo) {

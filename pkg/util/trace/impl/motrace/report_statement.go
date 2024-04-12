@@ -41,7 +41,6 @@ import (
 
 var NilStmtID [16]byte
 var NilTxnID [16]byte
-var NilSesID [16]byte
 
 // StatementInfo implement export.IBuffer2SqlItem and export.CsvFields
 
@@ -165,7 +164,7 @@ func StatementInfoFilter(i Item) bool {
 type StatementInfo struct {
 	StatementID          [16]byte `json:"statement_id"`
 	TransactionID        [16]byte `json:"transaction_id"`
-	SessionID            [16]byte `jons:"session_id"`
+	SessionID            string   `jons:"session_id"`
 	Account              string   `json:"account"`
 	User                 string   `json:"user"`
 	Host                 string   `json:"host"`
@@ -233,7 +232,7 @@ type StatementInfo struct {
 }
 
 type Key struct {
-	SessionID     [16]byte
+	SessionID     string
 	StatementType string
 	Window        time.Time
 	Status        StatementInfoStatus
@@ -318,7 +317,7 @@ func (s *StatementInfo) freeNoLocked() {
 func (s *StatementInfo) free() {
 	s.StatementID = NilStmtID
 	s.TransactionID = NilTxnID
-	s.SessionID = NilSesID
+	s.SessionID = ""
 	s.Account = ""
 	s.User = ""
 	s.Host = ""
@@ -409,7 +408,7 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	if !s.IsZeroTxnID() {
 		row.SetColumnVal(txnIDCol, table.UuidField(s.TransactionID[:]))
 	}
-	row.SetColumnVal(sesIDCol, table.UuidField(s.SessionID[:]))
+	row.SetColumnVal(sesIDCol, table.StringField(s.SessionID))
 	row.SetColumnVal(accountCol, table.StringField(s.Account))
 	row.SetColumnVal(roleIdCol, table.Int64Field(int64(s.RoleId)))
 	row.SetColumnVal(userCol, table.StringField(s.User))

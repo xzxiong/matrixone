@@ -303,15 +303,14 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		}
 		copy(stm.TransactionID[:], txn.Txn().ID)
 	}
-	// set SessionID
-	copy(stm.SessionID[:], ses.GetUUID())
 	requestAt := envBegin
 	if !useEnv {
 		requestAt = time.Now()
 	}
 
 	copy(stm.StatementID[:], stmID[:])
-	// END> set StatementID
+
+	stm.SessionID = ses.GetUUID()
 	stm.Account = tenant.GetTenant()
 	stm.RoleId = proc.SessionInfo.RoleId
 	stm.User = tenant.GetUser()

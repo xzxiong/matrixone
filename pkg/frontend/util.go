@@ -537,14 +537,14 @@ func initLogger() {
 func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
 	if ses != nil {
 		if ses.tStmt != nil {
-			fields = append(fields, zap.ByteString(sessionId, ses.tStmt.SessionID[:]))
+			fields = append(fields, zap.String(sessionId, ses.GetUUID()))
 			fields = append(fields, zap.ByteString(statementId, ses.tStmt.StatementID[:]))
 			txnInfo := ses.GetTxnInfo()
 			if txnInfo != "" {
 				fields = append(fields, zap.String(txnId, txnInfo))
 			}
 		} else {
-			fields = append(fields, zap.ByteString(sessionId, ses.GetUUID()))
+			fields = append(fields, zap.String(sessionId, ses.GetUUID()))
 		}
 	}
 	return fields
