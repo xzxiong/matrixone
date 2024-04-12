@@ -25,7 +25,6 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
-	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
 )
 
@@ -174,7 +173,7 @@ func (ie *internalExecutor) Query(ctx context.Context, sql string, opts ie.Sessi
 	}()
 	ie.executor.SetSession(sess)
 	ie.proto.stashResult = true
-	sess.Info(ctx, "internalExecutor new session", trace.ContextField(ctx))
+	sess.Info(ctx, "internalExecutor new session")
 	err := ie.executor.doComQuery(ctx, &UserInput{sql: sql})
 	res := ie.proto.swapOutResult()
 	res.err = err
