@@ -17,6 +17,7 @@ package motrace
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,7 +41,7 @@ import (
 )
 
 var NilStmtID [16]byte
-var NilTxnID [16]byte
+var NilTxnID = ""
 
 // StatementInfo implement export.IBuffer2SqlItem and export.CsvFields
 
@@ -163,7 +164,7 @@ func StatementInfoFilter(i Item) bool {
 
 type StatementInfo struct {
 	StatementID          [16]byte `json:"statement_id"`
-	TransactionID        [16]byte `json:"transaction_id"`
+	TransactionID        string   `json:"transaction_id"`
 	SessionID            string   `jons:"session_id"`
 	Account              string   `json:"account"`
 	User                 string   `json:"user"`
@@ -406,7 +407,7 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.Reset()
 	row.SetColumnVal(stmtIDCol, table.UuidField(s.StatementID[:]))
 	if !s.IsZeroTxnID() {
-		row.SetColumnVal(txnIDCol, table.UuidField(s.TransactionID[:]))
+		row.SetColumnVal(txnIDCol, table.StringField(s.TransactionID))
 	}
 	row.SetColumnVal(sesIDCol, table.StringField(s.SessionID))
 	row.SetColumnVal(accountCol, table.StringField(s.Account))
@@ -570,11 +571,11 @@ func (s *StatementInfo) SetSerializableExecPlan(execPlan SerializableExecPlan) {
 }
 
 func (s *StatementInfo) SetTxnID(id []byte) {
-	copy(s.TransactionID[:], id)
+	s.TransactionID = hex.EncodeToString(id)
 }
 
 func (s *StatementInfo) IsZeroTxnID() bool {
-	return bytes.Equal(s.TransactionID[:], NilTxnID[:])
+	return s.TransactionID == NilTxnID
 }
 
 // Report do report statement info to the Collector.

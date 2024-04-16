@@ -301,7 +301,7 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		if err != nil {
 			return nil, err
 		}
-		copy(stm.TransactionID[:], txn.Txn().ID)
+		stm.SetTxnID(txn.Txn().ID)
 	}
 	requestAt := envBegin
 	if !useEnv {
