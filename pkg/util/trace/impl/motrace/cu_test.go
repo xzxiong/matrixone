@@ -183,6 +183,15 @@ func TestCalculateCUMemDecimal(t *testing.T) {
 			//    3882.803846579476
 			want: 3882.803846579476,
 		},
+		{
+			name: "overflow #....",
+			args: args{
+				memByte:    73085025,
+				durationNS: 167879995734,
+				cfg:        &dummyOBConfig,
+			},
+			want: 83.0857657340414,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
