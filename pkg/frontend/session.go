@@ -54,6 +54,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/vm/engine"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/memoryengine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
+	"go.uber.org/zap/zapcore"
 
 	"go.uber.org/zap"
 )
@@ -1265,6 +1266,10 @@ func (ses *Session) GetTenantNameWithStmt(stmt tree.Statement) string {
 
 func (ses *Session) GetTenantName() string {
 	return ses.GetTenantNameWithStmt(nil)
+}
+
+func (ses *Session) GetRawUUID() uuid.UUID {
+	return uuid.Must(uuid.Parse(ses.uuid))
 }
 
 func (ses *Session) GetUUID() string {
@@ -2610,6 +2615,7 @@ func (ses *Session) Migrate(req *query.MigrateConnToRequest) error {
 }
 
 type SessionLogger interface {
+	SessionGetter
 	Info(ctx context.Context, msg string, fields ...zap.Field)
 	Error(ctx context.Context, msg string, fields ...zap.Field)
 	Debug(ctx context.Context, msg string, fields ...zap.Field)
@@ -2618,8 +2624,23 @@ type SessionLogger interface {
 	Debugf(ctx context.Context, msg string, args ...any)
 }
 
+type SessionGetter interface {
+	GetSessId() uuid.UUID
+	GetStmtId() uuid.UUID
+	GetTxnId() uuid.UUID
+	GetLogLevel() zapcore.Level
+}
+
 func (ses *Session) GetLogger() SessionLogger {
 	return ses
+}
+
+func (ses *Session) GetSessId() uuid.UUID {
+	return uuid.Must(uuid.Parse(ses.GetUUID()))
+}
+
+func (ses *Session) GetLogLevel() zapcore.Level {
+	return zap.InfoLevel
 }
 
 func (ses *Session) Info(ctx context.Context, msg string, fields ...zap.Field) {

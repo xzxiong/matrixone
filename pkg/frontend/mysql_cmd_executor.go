@@ -66,6 +66,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/disttae/route"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -4298,6 +4299,8 @@ func (mce *MysqlCmdExecutor) doComQuery(requestCtx context.Context, input *UserI
 		SqlHelper:            ses.GetSqlHelper(),
 		Buf:                  ses.GetBuffer(),
 		SourceInMemScanBatch: inMemStreamScan,
+		LogLevel:             zapcore.InfoLevel, //TODO: need set by session level config
+		SessionId:            ses.GetRawUUID(),  // TODO: improve GetRawUUID(), GetUUID()
 	}
 	proc.SetStmtProfile(&ses.stmtProfile)
 	proc.SetResolveVariableFunc(mce.ses.txnCompileCtx.ResolveVariable)

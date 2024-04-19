@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/matrixorigin/matrixone/pkg/sql/colexec/indexjoin"
 	"time"
 	"unsafe"
 
@@ -51,6 +50,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/fuzzyfilter"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/group"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/hashbuild"
+	"github.com/matrixorigin/matrixone/pkg/sql/colexec/indexjoin"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/insert"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/intersect"
 	"github.com/matrixorigin/matrixone/pkg/sql/colexec/intersectall"
@@ -102,6 +102,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/vm/engine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // CnServerMessageHandler is responsible for processing the cn-client message received at cn-server.
@@ -436,8 +437,49 @@ func encodeProcessInfo(proc *process.Process, sql string) ([]byte, error) {
 		}
 	}
 	{ // log info
+		stmtId := proc.StmtProfile.GetStmtId()
+		txnId := proc.StmtProfile.GetTxnId()
+		procInfo.SessionLogger = &pipeline.SessionLoggerInfo{
+			SessId:   proc.SessionInfo.SessionId[:],
+			StmtId:   stmtId[:],
+			TxnId:    txnId[:],
+			LogLevel: zapLogLevel2EnumLogLevel(proc.SessionInfo.LogLevel),
+		}
 	}
 	return procInfo.Marshal()
+}
+
+var zapLogLevel2EnumLogLevelMap = map[zapcore.Level]pipeline.SessionLoggerInfo_LogLevel{
+	zap.DebugLevel:  pipeline.SessionLoggerInfo_Debug,
+	zap.InfoLevel:   pipeline.SessionLoggerInfo_Info,
+	zap.WarnLevel:   pipeline.SessionLoggerInfo_Warn,
+	zap.ErrorLevel:  pipeline.SessionLoggerInfo_Error,
+	zap.DPanicLevel: pipeline.SessionLoggerInfo_Panic,
+	zap.PanicLevel:  pipeline.SessionLoggerInfo_Panic,
+	zap.FatalLevel:  pipeline.SessionLoggerInfo_Fatal,
+}
+
+func zapLogLevel2EnumLogLevel(level zapcore.Level) pipeline.SessionLoggerInfo_LogLevel {
+	if lvl, exist := zapLogLevel2EnumLogLevelMap[level]; exist {
+		return lvl
+	}
+	return pipeline.SessionLoggerInfo_Info
+}
+
+var enumLogLevel2ZapLogLevelMap = map[pipeline.SessionLoggerInfo_LogLevel]zapcore.Level{
+	pipeline.SessionLoggerInfo_Debug: zap.DebugLevel,
+	pipeline.SessionLoggerInfo_Info:  zap.InfoLevel,
+	pipeline.SessionLoggerInfo_Warn:  zap.WarnLevel,
+	pipeline.SessionLoggerInfo_Error: zap.ErrorLevel,
+	pipeline.SessionLoggerInfo_Panic: zap.PanicLevel,
+	pipeline.SessionLoggerInfo_Fatal: zap.FatalLevel,
+}
+
+func enumLogLevel2ZapLogLevel(level pipeline.SessionLoggerInfo_LogLevel) zapcore.Level {
+	if lvl, exist := enumLogLevel2ZapLogLevelMap[level]; exist {
+		return lvl
+	}
+	return zap.InfoLevel
 }
 
 func appendWriteBackOperator(c *Compile, s *Scope) *Scope {

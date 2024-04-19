@@ -33,6 +33,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/defines"
 
 	"github.com/BurntSushi/toml"
+	"github.com/google/uuid"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	mo_config "github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/container/types"
@@ -516,14 +517,14 @@ func logStatementStringStatus(ctx context.Context, ses *Session, stmtStr string,
 func appendSessionField(fields []zap.Field, ses *Session) []zap.Field {
 	if ses != nil {
 		if ses.tStmt != nil {
-			fields = append(fields, zap.String(sessionId, ses.GetUUID()))
-			fields = append(fields, zap.ByteString(statementId, ses.tStmt.StatementID[:]))
+			fields = append(fields, logutil.SessionIdField(ses.GetUUID()))
+			fields = append(fields, logutil.StatementIdField(uuid.UUID(ses.tStmt.StatementID).String()))
 			txnInfo := ses.GetTxnInfo()
 			if txnInfo != "" {
-				fields = append(fields, zap.String(txnId, txnInfo))
+				fields = append(fields, logutil.TxnIdField(txnInfo))
 			}
 		} else {
-			fields = append(fields, zap.String(sessionId, ses.GetUUID()))
+			fields = append(fields, logutil.SessionIdField(ses.GetUUID()))
 		}
 	}
 	return fields
