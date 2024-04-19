@@ -435,6 +435,8 @@ func encodeProcessInfo(proc *process.Process, sql string) ([]byte, error) {
 			QueryId:      proc.SessionInfo.QueryId,
 		}
 	}
+	{ // log info
+	}
 	return procInfo.Marshal()
 }
 
