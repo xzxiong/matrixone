@@ -21,9 +21,6 @@ import (
 	"time"
 	"unsafe"
 
-	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
-
-	"github.com/google/uuid"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/morpc"
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
@@ -98,9 +95,12 @@ import (
 	plan2 "github.com/matrixorigin/matrixone/pkg/sql/plan"
 	"github.com/matrixorigin/matrixone/pkg/txn/client"
 	"github.com/matrixorigin/matrixone/pkg/udf"
+	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
 	"github.com/matrixorigin/matrixone/pkg/vm"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
+
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -345,7 +345,7 @@ func (s *Scope) remoteRun(c *Compile) (err error) {
 	// new sender and do send work.
 	sender, err := newMessageSenderOnClient(s.Proc.Ctx, c, s.NodeInfo.Addr)
 	if err != nil {
-		logutil.Errorf("Failed to newMessageSenderOnClient sql=%s, txnID=%s, err=%v",
+		c.proc.Errorf(s.Proc.Ctx, "Failed to newMessageSenderOnClient sql=%s, txnID=%s, err=%v",
 			c.sql, c.proc.TxnOperator.Txn().DebugString(), err)
 		return err
 	}
