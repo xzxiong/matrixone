@@ -350,6 +350,28 @@ func (m *Merge) doMergeFiles(ctx context.Context, files []*FileMeta) error {
 		cacheFileData := &SliceCache{}
 		defer cacheFileData.Reset()
 
+		{
+			// readall
+			var size int64
+			var line []string
+			line, err = reader.ReadLine()
+			for ; line != nil && err == nil; line, err = reader.ReadLine() {
+				m.logger.Info(fmt.Sprintf("line: %v", line))
+				// check size
+				if err = row.ParseRow(line); err != nil {
+					m.logger.Error("parse first ETL row failed",
+						logutil.TableField(m.table.GetIdentify()),
+						logutil.PathField(fp.FilePath),
+						logutil.VarsField(SubStringPrefixLimit(fmt.Sprintf("%v", line), 102400)),
+					)
+					return err
+				}
+				size += row.Size()
+			}
+			m.logger.Info(fmt.Sprintf("size: %v", size))
+			return fmt.Errorf("manaual.")
+		}
+
 		// Read the first line to check if the record already exists
 		var existed bool
 		firstLine, err := reader.ReadLine()
