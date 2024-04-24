@@ -236,7 +236,7 @@ func (c *Compile) Compile(ctx context.Context, pn *plan.Plan, u any, fill func(a
 	defer func() {
 		if e := recover(); e != nil {
 			err = moerr.ConvertPanicError(ctx, e)
-			getLogger().Error("panic in compile",
+			c.proc.Error(ctx, "panic in compile",
 				zap.String("sql", c.sql),
 				zap.String("error", err.Error()))
 		}

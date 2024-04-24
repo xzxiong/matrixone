@@ -100,7 +100,7 @@ func (s *Scope) Run(c *Compile) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = moerr.ConvertPanicError(s.Proc.Ctx, e)
-			getLogger().Error("panic in scope run",
+			c.proc.Error(c.ctx, "panic in scope run",
 				zap.String("sql", c.sql),
 				zap.String("error", err.Error()))
 		}
@@ -174,7 +174,7 @@ func (s *Scope) MergeRun(c *Compile) error {
 			defer func() {
 				if e := recover(); e != nil {
 					err := moerr.ConvertPanicError(c.ctx, e)
-					getLogger().Error("panic in merge run run",
+					c.proc.Error(c.ctx, "panic in merge run run",
 						zap.String("sql", c.sql),
 						zap.String("error", err.Error()))
 					errChan <- err
