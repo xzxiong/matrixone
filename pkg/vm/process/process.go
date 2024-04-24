@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/matrixorigin/matrixone/pkg/common/log"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
@@ -40,6 +39,8 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/txn/util"
 	"github.com/matrixorigin/matrixone/pkg/udf"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
+
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -423,6 +424,14 @@ func (proc *Process) Error(ctx context.Context, msg string, fields ...zap.Field)
 	}
 }
 
+func (proc *Process) Warn(ctx context.Context, msg string, fields ...zap.Field) {
+	if proc.SessionInfo.LogLevel.Enabled(zap.WarnLevel) {
+		fields = appendSessionField(fields, proc)
+		fields = appendTraceField(fields, ctx)
+		proc.logger.Log(msg, log.DefaultLogOptions().WithLevel(zap.WarnLevel).AddCallerSkip(1), fields...)
+	}
+}
+
 func (proc *Process) Debug(ctx context.Context, msg string, fields ...zap.Field) {
 	if proc.SessionInfo.LogLevel.Enabled(zap.DebugLevel) {
 		fields = appendSessionField(fields, proc)
@@ -446,6 +455,15 @@ func (proc *Process) Errorf(ctx context.Context, msg string, args ...any) {
 		fields = appendSessionField(fields, proc)
 		fields = appendTraceField(fields, ctx)
 		proc.logger.Log(fmt.Sprintf(msg, args...), log.DefaultLogOptions().WithLevel(zap.ErrorLevel).AddCallerSkip(1), fields...)
+	}
+}
+
+func (proc *Process) Warnf(ctx context.Context, msg string, args ...any) {
+	if proc.SessionInfo.LogLevel.Enabled(zap.WarnLevel) {
+		fields := make([]zap.Field, 0, 5)
+		fields = appendSessionField(fields, proc)
+		fields = appendTraceField(fields, ctx)
+		proc.logger.Log(fmt.Sprintf(msg, args...), log.DefaultLogOptions().WithLevel(zap.WarnLevel).AddCallerSkip(1), fields...)
 	}
 }
 
