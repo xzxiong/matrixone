@@ -30,6 +30,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/panjf2000/ants/v2"
+	"go.uber.org/zap"
+
 	"github.com/matrixorigin/matrixone/pkg/catalog"
 	"github.com/matrixorigin/matrixone/pkg/cnservice/cnclient"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
@@ -81,8 +84,6 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/vm"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
-	"github.com/panjf2000/ants/v2"
-	"go.uber.org/zap"
 )
 
 // Note: Now the cost going from stat is actually the number of rows, so we can only estimate a number for the size of each row.
@@ -591,7 +592,7 @@ func (c *Compile) runOnce() error {
 			defer func() {
 				if e := recover(); e != nil {
 					err := moerr.ConvertPanicError(c.ctx, e)
-					getLogger().Error("panic in run",
+					c.proc.Error(c.ctx, "panic in run",
 						zap.String("sql", c.sql),
 						zap.String("error", err.Error()))
 					errC <- err
@@ -628,7 +629,7 @@ func (c *Compile) runOnce() error {
 	// fuzzy filter not sure whether this insert / load obey duplicate constraints, need double check
 	if c.fuzzy != nil && c.fuzzy.cnt > 0 {
 		if c.fuzzy.cnt > 10 {
-			logutil.Warnf("fuzzy filter cnt is %d, may be too high", c.fuzzy.cnt)
+			c.proc.Warnf(c.ctx, "fuzzy filter cnt is %d, may be too high", c.fuzzy.cnt)
 		}
 		err = c.fuzzy.backgroundSQLCheck(c)
 	}
@@ -1361,7 +1362,7 @@ func (c *Compile) compilePlanScope(ctx context.Context, step int32, curNodeIdx i
 		if nodeStats.GetCost()*float64(SingleLineSizeEstimate) >
 			float64(DistributedThreshold) &&
 			!arg.DeleteCtx.CanTruncate {
-			logutil.Infof("delete of '%s' write s3\n", c.sql)
+			c.proc.Infof(c.ctx, "delete of '%s' write s3\n", c.sql)
 			rs := c.newDeleteMergeScope(arg, ss)
 			rs.Instructions = append(rs.Instructions, vm.Instruction{
 				Op: vm.MergeDelete,
@@ -1490,7 +1491,7 @@ func (c *Compile) compilePlanScope(ctx context.Context, step int32, curNodeIdx i
 			float64(DistributedThreshold) || c.anal.qry.LoadTag
 
 		if toWriteS3 {
-			logutil.Debugf("insert of '%s' write s3\n", c.sql)
+			c.proc.Debugf(c.ctx, "insert of '%s' write s3\n", c.sql)
 			if !haveSinkScanInPlan(ns, n.Children[0]) && len(ss) != 1 {
 				var insertArg *insert.Argument
 				insertArg, err = constructInsert(n, c.e, c.proc)
@@ -1836,7 +1837,7 @@ func (c *Compile) compileExternScan(ctx context.Context, n *plan.Node) ([]*Scope
 	start := time.Now()
 	defer func() {
 		if t := time.Since(start); t > time.Second {
-			logutil.Infof("compileExternScan cost %v", t)
+			c.proc.Infof(ctx, "compileExternScan cost %v", t)
 		}
 	}()
 
@@ -1864,7 +1865,7 @@ func (c *Compile) compileExternScan(ctx context.Context, n *plan.Node) ([]*Scope
 		}
 	}
 	if time.Since(t) > time.Second {
-		logutil.Infof("lock table %s.%s cost %v", n.ObjRef.SchemaName, n.ObjRef.ObjName, time.Since(t))
+		c.proc.Infof(ctx, "lock table %s.%s cost %v", n.ObjRef.SchemaName, n.ObjRef.ObjName, time.Since(t))
 	}
 	ID2Addr := make(map[int]int, 0)
 	mcpu := 0
@@ -1955,7 +1956,7 @@ func (c *Compile) compileExternScan(ctx context.Context, n *plan.Node) ([]*Scope
 		fileSize = []int64{param.FileSize}
 	}
 	if time.Since(t) > time.Second {
-		logutil.Infof("read dir cost %v", time.Since(t))
+		c.proc.Infof(ctx, "read dir cost %v", time.Since(t))
 	}
 
 	if len(fileList) == 0 {
@@ -1982,7 +1983,7 @@ func (c *Compile) compileExternScan(ctx context.Context, n *plan.Node) ([]*Scope
 		}
 	}
 	if time.Since(t) > time.Second {
-		logutil.Infof("read file offset cost %v", time.Since(t))
+		c.proc.Infof(ctx, "read file offset cost %v", time.Since(t))
 	}
 	ss := make([]*Scope, 1)
 	if param.Parallel {
@@ -3372,7 +3373,7 @@ func (c *Compile) newShuffleJoinScopeList(left, right []*Scope, n *plan.Node) ([
 			}
 		}
 		if !appended {
-			logutil.Errorf("no same addr scope to append left scopes")
+			c.proc.Errorf(c.ctx, "no same addr scope to append left scopes")
 			children[0].PreScopes = append(children[0].PreScopes, scp)
 		}
 	}
@@ -3399,7 +3400,7 @@ func (c *Compile) newShuffleJoinScopeList(left, right []*Scope, n *plan.Node) ([
 			}
 		}
 		if !appended {
-			logutil.Errorf("no same addr scope to append right scopes")
+			c.proc.Errorf(c.ctx, "no same addr scope to append right scopes")
 			children[0].PreScopes = append(children[0].PreScopes, scp)
 		}
 	}
@@ -4081,7 +4082,7 @@ func (c *Compile) generateNodes(n *plan.Node) (engine.Nodes, []any, []types.T, e
 	// some log for finding a bug.
 	tblId := rel.GetTableID(ctx)
 	expectedLen := ranges.Len()
-	logutil.Debugf("cn generateNodes, tbl %d ranges is %d", tblId, expectedLen)
+	c.proc.Debugf(ctx, "cn generateNodes, tbl %d ranges is %d", tblId, expectedLen)
 
 	// if len(ranges) == 0 indicates that it's a temporary table.
 	if ranges.Len() == 0 && n.TableDef.TableType != catalog.SystemOrdinaryRel {
@@ -4245,7 +4246,7 @@ func shuffleBlocksToMultiCN(c *Compile, ranges *objectio.BlockInfoSlice, rel eng
 		for i := range c.cnList {
 			logstring = logstring + c.cnList[i].Addr + " "
 		}
-		logutil.Warnf(logstring)
+		c.proc.Warnf(c.ctx, logstring)
 	}
 	return newNodes, nil
 }
@@ -4523,7 +4524,7 @@ func (c *Compile) fatalLog(retry int, err error) {
 		return
 	}
 
-	logutil.Fatalf("BUG(RC): txn %s retry %d, error %+v\n",
+	c.proc.Fatalf(c.ctx, "BUG(RC): txn %s retry %d, error %+v\n",
 		hex.EncodeToString(c.proc.TxnOperator.Txn().ID),
 		retry,
 		err.Error())
@@ -4556,7 +4557,7 @@ func detectFkSelfRefer(c *Compile, detectSqls []string) error {
 func runDetectSql(c *Compile, sql string) error {
 	res, err := c.runSqlWithResult(sql)
 	if err != nil {
-		logutil.Errorf("The sql that caused the fk self refer check failed is %s, and generated background sql is %s", c.sql, sql)
+		c.proc.Errorf(c.ctx, "The sql that caused the fk self refer check failed is %s, and generated background sql is %s", c.sql, sql)
 		return err
 	}
 	defer res.Close()
@@ -4577,7 +4578,7 @@ func runDetectSql(c *Compile, sql string) error {
 func runDetectFkReferToDBSql(c *Compile, sql string) error {
 	res, err := c.runSqlWithResult(sql)
 	if err != nil {
-		logutil.Errorf("The sql that caused the fk self refer check failed is %s, and generated background sql is %s", c.sql, sql)
+		c.proc.Errorf(c.ctx, "The sql that caused the fk self refer check failed is %s, and generated background sql is %s", c.sql, sql)
 		return err
 	}
 	defer res.Close()

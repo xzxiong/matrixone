@@ -2618,9 +2618,13 @@ type SessionLogger interface {
 	SessionGetter
 	Info(ctx context.Context, msg string, fields ...zap.Field)
 	Error(ctx context.Context, msg string, fields ...zap.Field)
+	Warn(ctx context.Context, msg string, fields ...zap.Field)
+	Fatal(ctx context.Context, msg string, fields ...zap.Field)
 	Debug(ctx context.Context, msg string, fields ...zap.Field)
 	Infof(ctx context.Context, msg string, args ...any)
 	Errorf(ctx context.Context, msg string, args ...any)
+	Warnf(ctx context.Context, msg string, args ...any)
+	Fatalf(ctx context.Context, msg string, args ...any)
 	Debugf(ctx context.Context, msg string, args ...any)
 }
 
@@ -2670,6 +2674,15 @@ func (ses *Session) Warn(ctx context.Context, msg string, fields ...zap.Field) {
 	}
 }
 
+func (ses *Session) Fatal(ctx context.Context, msg string, fields ...zap.Field) {
+	if ses.logger.Enabled(zap.FatalLevel) {
+		fields = append(fields, zap.String("session_info", ses.GetDebugString()))
+		fields = appendSessionField(fields, ses)
+		fields = appendTraceField(fields, ctx)
+		ses.logger.Log(msg, log.DefaultLogOptions().WithLevel(zap.FatalLevel).AddCallerSkip(1), fields...)
+	}
+}
+
 func (ses *Session) Debug(ctx context.Context, msg string, fields ...zap.Field) {
 	if ses.logger.Enabled(zap.DebugLevel) {
 		fields = append(fields, zap.String("session_info", ses.GetDebugString()))
@@ -2706,6 +2719,16 @@ func (ses *Session) Warnf(ctx context.Context, msg string, args ...any) {
 		fields = appendSessionField(fields, ses)
 		fields = appendTraceField(fields, ctx)
 		ses.logger.Log(fmt.Sprintf(msg, args...), log.DefaultLogOptions().WithLevel(zap.WarnLevel).AddCallerSkip(1), fields...)
+	}
+}
+
+func (ses *Session) Fatalf(ctx context.Context, msg string, args ...any) {
+	if ses.logger.Enabled(zap.FatalLevel) {
+		fields := make([]zap.Field, 0, 5)
+		fields = append(fields, zap.String("session_info", ses.GetDebugString()))
+		fields = appendSessionField(fields, ses)
+		fields = appendTraceField(fields, ctx)
+		ses.logger.Log(fmt.Sprintf(msg, args...), log.DefaultLogOptions().WithLevel(zap.FatalLevel).AddCallerSkip(1), fields...)
 	}
 }
 
