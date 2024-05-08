@@ -495,6 +495,9 @@ func logStatementStringStatus(ctx context.Context, ses FeSession, stmtStr string
 		logDebug(ses, ses.GetDebugString(), "query trace status", logutil.ConnectionIdField(ses.GetConnectionID()), logutil.StatementField(str), logutil.StatusField(status.String()), trace.ContextField(ctx))
 		err = nil // make sure: it is nil for EndStatement
 	} else {
+		if stmt := ses.GetStmtInfo(); stmt != nil && stmt.IsMoLogger() {
+			fmt.Printf("mo_logger raw: %s\n", ses.GetSql())
+		}
 		logError(ses, ses.GetDebugString(), "query trace status", logutil.ConnectionIdField(ses.GetConnectionID()), logutil.StatementField(str), logutil.StatusField(status.String()), logutil.ErrorField(err), trace.ContextField(ctx))
 	}
 
