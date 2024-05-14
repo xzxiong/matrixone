@@ -21,10 +21,11 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/mpool"
@@ -124,15 +125,23 @@ func GetOrInitDBConn(forceNewConn bool, randomCN bool) (*sql.DB, error) {
 		if err != nil {
 			return err
 		}
-		dsn :=
-			fmt.Sprintf("%s:%s@tcp(%s)/?readTimeout=10s&writeTimeout=15s&timeout=15s&maxAllowedPacket=0",
-				dbUser.UserName,
-				dbUser.Password,
-				dbAddress)
-		newDBConn, err := sql.Open("mysql", dsn)
+
+		mysqlCfg := mysql.NewConfig()
+		mysqlCfg.User = dbUser.UserName
+		mysqlCfg.Passwd = dbUser.Password
+		mysqlCfg.Addr = dbAddress
+		mysqlCfg.Timeout = 15 * time.Second
+		mysqlCfg.ReadTimeout = 10 * time.Second
+		mysqlCfg.WriteTimeout = 15 * time.Second
+		mysqlCfg.ParseTime = true
+		mysqlCfg.MaxAllowedPacket = 0
+		// use raw sql
+		mysqlCfg.InterpolateParams = true
+		connector, err := mysql.NewConnector(mysqlCfg)
 		if err != nil {
 			return err
 		}
+		newDBConn := sql.OpenDB(connector)
 		if _, err := newDBConn.Exec("set session disable_txn_trace=1"); err != nil {
 			return errors.Join(err, newDBConn.Close())
 		}
@@ -258,10 +267,10 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 
 	// Write each record of the chunk to the CSVWriter
 	for _, record := range records {
-		for i, col := range record {
-			// record[i] = strings.ReplaceAll(strings.ReplaceAll(col, "\\", "\\\\"), "'", "''")
-			record[i] = strings.ReplaceAll(col, "'", "''")
-		}
+		// for i, col := range record {
+		// 	// record[i] = strings.ReplaceAll(strings.ReplaceAll(col, "\\", "\\\\"), "'", "''")
+		// 	record[i] = strings.ReplaceAll(col, "'", "''")
+		// }
 		if err := csvWriter.WriteStrings(record); err != nil {
 			return err
 		}
@@ -269,13 +278,15 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 
 	csvData := csvWriter.GetContent()
 
-	loadSQL := fmt.Sprintf("LOAD DATA INLINE FORMAT='csv', DATA='%s' INTO TABLE %s.%s FIELDS TERMINATED BY ','", csvData, tbl.Database, tbl.Table)
+	//loadSQL := fmt.Sprintf("LOAD DATA INLINE FORMAT='csv', DATA='%s' INTO TABLE %s.%s FIELDS TERMINATED BY ','", csvData, tbl.Database, tbl.Table)
 
 	// Use the transaction to execute the SQL command
 
-	_, execErr := sqlDb.Exec(loadSQL)
+	//_, execErr := sqlDb.Exec(loadSQL)
+	_, execErr := sqlDb.Exec(`LOAD DATA INLINE FORMAT='csv', DATA=? INTO TABLE test.statement_info FIELDS TERMINATED BY ',';`,
+		csvData)
 	if execErr != nil {
-		fmt.Printf("db_holder raw: %s\n", loadSQL)
+		fmt.Printf("db_holder err: %v\n", execErr)
 	}
 
 	return execErr
