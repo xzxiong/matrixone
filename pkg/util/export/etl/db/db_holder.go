@@ -274,6 +274,9 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 	// Use the transaction to execute the SQL command
 
 	_, execErr := sqlDb.Exec(loadSQL)
+	if execErr != nil {
+		fmt.Printf("db_holder raw: %s\n", loadSQL)
+	}
 
 	return execErr
 
