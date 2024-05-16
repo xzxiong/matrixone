@@ -21,6 +21,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -261,36 +262,47 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 	if len(records) == 0 {
 		return nil
 	}
-
-	csvWriter := NewCSVWriter(ctx)
-	defer csvWriter.Release() // Ensures that the buffer is returned to the pool
-
-	// Write each record of the chunk to the CSVWriter
-	for _, record := range records {
-		// for i, col := range record {
-		// 	// record[i] = strings.ReplaceAll(strings.ReplaceAll(col, "\\", "\\\\"), "'", "''")
-		// 	record[i] = strings.ReplaceAll(col, "'", "''")
-		// }
-		if err := csvWriter.WriteStrings(record); err != nil {
-			return err
-		}
+	loadSQL, err, done := genLoadDataInline(ctx, records, tbl)
+	if done {
+		return err
 	}
-
-	csvData := csvWriter.GetContent()
 
 	//loadSQL := fmt.Sprintf("LOAD DATA INLINE FORMAT='csv', DATA='%s' INTO TABLE %s.%s FIELDS TERMINATED BY ','", csvData, tbl.Database, tbl.Table)
 
 	// Use the transaction to execute the SQL command
 
-	//_, execErr := sqlDb.Exec(loadSQL)
-	_, execErr := sqlDb.Exec(`LOAD DATA INLINE FORMAT='csv', DATA=? INTO TABLE test.statement_info FIELDS TERMINATED BY ',';`,
-		csvData)
+	_, execErr := sqlDb.Exec(loadSQL)
+	//_, execErr := sqlDb.Exec(`LOAD DATA INLINE FORMAT='csv', DATA=? INTO TABLE %s.%s FIELDS TERMINATED BY ',';`,
+	//	csvData, tbl.Database, tbl.Table)
 	if execErr != nil {
 		fmt.Printf("db_holder err: %v\n", execErr)
 	}
 
 	return execErr
 
+}
+
+func genLoadDataInline(ctx context.Context, records [][]string, tbl *table.Table) (string, error, bool) {
+	if len(records) == 0 {
+		return "", nil, true
+	}
+
+	csvWriter := NewCSVWriter(ctx)
+	defer csvWriter.Release() // Ensures that the buffer is returned to the pool
+	// Write each record of the chunk to the CSVWriter
+	for _, record := range records {
+		if err := csvWriter.WriteStrings(record); err != nil {
+			return "", err, true
+		}
+	}
+
+	// format loadSQL
+	csvData := csvWriter.GetContent()
+	csvData = strings.ReplaceAll(csvData, `'`, `''`) // sql will quote the csvData into \', SO NEED to escape it as `''`
+	csvData = strings.ReplaceAll(csvData, `\`, `\\`) // sql NOT recognize the '\', NEED to escape it as `\\`
+	loadSQL := fmt.Sprintf("LOAD DATA INLINE FORMAT='csv', DATA='%s' INTO TABLE %s.%s FIELDS TERMINATED BY ','", csvData, tbl.Database, tbl.Table)
+
+	return loadSQL, nil, false
 }
 
 type DBConnProvider func(forceNewConn bool, randomCN bool) (*sql.DB, error)

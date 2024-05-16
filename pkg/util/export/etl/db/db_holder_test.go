@@ -52,7 +52,7 @@ func TestBulkInsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
-	mock.ExpectExec(regexp.QuoteMeta(`LOAD DATA INLINE FORMAT='csv', DATA='str1,1,1.1,1,2023-05-16T00:00:00Z,"{""key1"":""value1 \n test , \r ''test''""}"
+	mock.ExpectExec(regexp.QuoteMeta(`LOAD DATA INLINE FORMAT='csv', DATA='str1,1,1.1,1,2023-05-16T00:00:00Z,"{""key1"":""value1 \\n test , \\r ''test''""}"
 str2,2,2.2,2,2023-05-16T00:00:00Z,"{""key2"":""value2""}"
 ' INTO TABLE testDB.testTable`)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -66,6 +66,52 @@ str2,2,2.2,2,2023-05-16T00:00:00Z,"{""key2"":""value2""}"
 	if err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
+}
+
+func Test_genLoadDataInline(t *testing.T) {
+
+	ctx := context.TODO()
+	tbl := &table.Table{
+		Account:  "test",
+		Database: "testDB",
+		Table:    "testTable",
+		Engine:   table.NormalTableEngine,
+		Columns: []table.Column{
+			{Name: "str", ColType: table.TVarchar, Scale: 32, Default: "", Comment: "str column"},
+			{Name: "int64", ColType: table.TInt64, Default: "0", Comment: "int64 column"},
+			{Name: "float64", ColType: table.TFloat64, Default: "0.0", Comment: "float64 column"},
+			{Name: "uint64", ColType: table.TUint64, Default: "0", Comment: "uint64 column"},
+			{Name: "datetime_6", ColType: table.TDatetime, Default: "", Comment: "datetime.6 column"},
+			{Name: "json_col", ColType: table.TText, Default: "{}", Comment: "json column"},
+		},
+	}
+
+	records := [][]string{
+		{"str1", "1", "1.1", "1", "2023-05-16 16:06:18.070277", `{"key1":"value1 \n test , \t 'test'"}`},
+		{"str2", "2", "2.2", "2", "2023-05-16 16:06:18.070277", `{"key2":"value2"}`},
+		{"str3", "3", "2.2", "3", "2023-05-16 16:06:18.070277", `'"%$^&*()_+@!\''`},
+		{"row1", "1", "1.1", "1", "2023-05-16 16:06:18.070277", `{"key1":"value1"}`},
+		{"row6", "3", "2.2", "3", "2023-05-16 16:06:18.070277", `{"key1":"newline:
+"}`},
+		{"row\\8", "3", "2.2", "3", "2023-05-16 16:06:18.070277", `{"key1":"value1"}`},
+	}
+
+	want := `LOAD DATA INLINE FORMAT='csv', DATA='str1,1,1.1,1,2023-05-16 16:06:18.070277,"{""key1"":""value1 \\n test , \\t ''test''""}"
+str2,2,2.2,2,2023-05-16 16:06:18.070277,"{""key2"":""value2""}"
+str3,3,2.2,3,2023-05-16 16:06:18.070277,"''""%$^&*()_+@!\\''''"
+row1,1,1.1,1,2023-05-16 16:06:18.070277,"{""key1"":""value1""}"
+row6,3,2.2,3,2023-05-16 16:06:18.070277,"{""key1"":""newline:
+""}"
+row\\8,3,2.2,3,2023-05-16 16:06:18.070277,"{""key1"":""value1""}"
+' INTO TABLE testDB.testTable FIELDS TERMINATED BY ','`
+
+	t.Logf("DDL: %s", tbl.ToCreateSql(ctx, true))
+	t.Logf("want: %s", want)
+
+	got, err, done := genLoadDataInline(ctx, records, tbl)
+	require.Nil(t, err)
+	require.Equal(t, false, done)
+	require.Equal(t, want, got)
 }
 
 func TestIsRecordExisted(t *testing.T) {
