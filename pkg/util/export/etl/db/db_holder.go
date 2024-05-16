@@ -267,13 +267,7 @@ func bulkInsert(ctx context.Context, sqlDb *sql.DB, records [][]string, tbl *tab
 		return err
 	}
 
-	//loadSQL := fmt.Sprintf("LOAD DATA INLINE FORMAT='csv', DATA='%s' INTO TABLE %s.%s FIELDS TERMINATED BY ','", csvData, tbl.Database, tbl.Table)
-
-	// Use the transaction to execute the SQL command
-
 	_, execErr := sqlDb.Exec(loadSQL)
-	//_, execErr := sqlDb.Exec(`LOAD DATA INLINE FORMAT='csv', DATA=? INTO TABLE %s.%s FIELDS TERMINATED BY ',';`,
-	//	csvData, tbl.Database, tbl.Table)
 	if execErr != nil {
 		fmt.Printf("db_holder err: %v\n", execErr)
 	}
@@ -297,6 +291,7 @@ func genLoadDataInline(ctx context.Context, records [][]string, tbl *table.Table
 	}
 
 	// format loadSQL
+	// PS: sqlDb.Exec(loadSQL)
 	csvData := csvWriter.GetContent()
 	csvData = strings.ReplaceAll(csvData, `'`, `''`) // sql will quote the csvData into \', SO NEED to escape it as `''`
 	csvData = strings.ReplaceAll(csvData, `\`, `\\`) // sql NOT recognize the '\', NEED to escape it as `\\`
