@@ -417,7 +417,10 @@ func (mp *MysqlProtocolImpl) CalculateOutTrafficBytes(reset bool) (bytes int64, 
 		// Case 2: send data as CSV
 		ses.writeCsvBytes.Load()
 	// mysql packet num + length(sql) / 16KiB + payload / 16 KiB
-	_, tcpPkgCnt := ses.GetPacketCnt()
+	mysqlTcpPkgCnt, tcpPkgCnt := ses.GetPacketCnt()
+	if ses.GetSql() == "/*cloud_user*/select * from 32kb_8192row_int order by a;" {
+		ses.Infof(mp.ctx, "mysql/tcp packet num: %d, %d", mysqlTcpPkgCnt, tcpPkgCnt)
+	}
 	packets = tcpPkgCnt + int64(len(ses.sql)>>14) + int64(ses.payloadCounter>>14)
 	if reset {
 		ses.ResetPacketCounter()
