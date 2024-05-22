@@ -375,6 +375,7 @@ func (mp *MysqlProtocolImpl) AddSequenceId(a uint8) {
 
 func (mp *MysqlProtocolImpl) SetSequenceID(value uint8) {
 	mp.ses.CountPacket(1)
+	mp.ses.CountTcpPacket(1)
 	mp.sequenceId.Store(uint32(value))
 }
 
@@ -416,7 +417,8 @@ func (mp *MysqlProtocolImpl) CalculateOutTrafficBytes(reset bool) (bytes int64, 
 		// Case 2: send data as CSV
 		ses.writeCsvBytes.Load()
 	// mysql packet num + length(sql) / 16KiB + payload / 16 KiB
-	packets = ses.GetPacketCnt() + int64(len(ses.sql)>>14) + int64(ses.payloadCounter>>14)
+	_, tcpPkgCnt := ses.GetPacketCnt()
+	packets = tcpPkgCnt + int64(len(ses.sql)>>14) + int64(ses.payloadCounter>>14)
 	if reset {
 		ses.ResetPacketCounter()
 	}
@@ -2401,6 +2403,7 @@ func (mp *MysqlProtocolImpl) flushOutBuffer() error {
 		mp.writeBytes += uint64(mp.bytesInOutBuffer)
 		// FIXME: use a suitable timeout value
 		mp.incDebugCount(8)
+		mp.ses.CountTcpPacket(1)
 		err := mp.tcpConn.Flush(0)
 		mp.incDebugCount(9)
 		if err != nil {
