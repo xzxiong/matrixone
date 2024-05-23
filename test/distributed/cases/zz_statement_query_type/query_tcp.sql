@@ -8,7 +8,7 @@
 -- stats[7] = {client sended pkg} + 15 ~= 18
 set @tcp_cnt=15;
 -- @ignore:2,3,4
-select statement, json_unquote(json_extract(stats, '$[7]')) <= (@tcp_cnt+5) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement='select * from 32kb_8192row_int order by a' order by request_at desc limit 1;
+select statement, json_unquote(json_extract(stats, '$[7]')) between (@tcp_cnt-2) and (@tcp_cnt+5) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement='select * from 32kb_8192row_int order by a' order by request_at desc limit 1;
 
 -- case:load_1751_rows
 -- more in https://github.com/matrixorigin/matrixone/issues/10863#issuecomment-1684904316
@@ -16,9 +16,9 @@ select statement, json_unquote(json_extract(stats, '$[7]')) <= (@tcp_cnt+5) chec
 -- stats[7] = (404 / 16) ~= 25
 set @tcp_cnt=25;
 -- @ignore:2,3,4
-select left(statement, 16) as stmt, json_unquote(json_extract(stats, '$[7]')) <= (@tcp_cnt+5) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement like '%rawlog_withnull.csv%' and statement_type = 'Load' order by request_at desc limit 1;
+select left(statement, 16) as stmt, json_unquote(json_extract(stats, '$[7]')) between (@tcp_cnt-2) and (@tcp_cnt+5) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement like '%rawlog_withnull.csv%' and statement_type = 'Load' order by request_at desc limit 1;
 
 -- case: verify 'use test
 set @tcp_cnt=1;
 -- @ignore:2,3,4
-select statement, json_unquote(json_extract(stats, '$[7]')) <= (@tcp_cnt+1) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement='use test' order by request_at desc limit 1;
+select statement, json_unquote(json_extract(stats, '$[7]')) between (@tcp_cnt-2) and (@tcp_cnt+5) check_val, statement_id, stats, json_extract(stats, '$[7]') pkg_cnt from system.statement_info where account= 'bvt_query_tcp' and statement='use test' order by request_at desc limit 1;
