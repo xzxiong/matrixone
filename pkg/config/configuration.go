@@ -575,7 +575,7 @@ func NewObservabilityParameters() *ObservabilityParameters {
 		MetricStorageUsageUpdateInterval:   toml.Duration{},
 		MetricStorageUsageCheckNewInterval: toml.Duration{},
 		MergeCycle:                         toml.Duration{},
-		DisableSpan:                        false,
+		DisableSpan:                        true, // moc#3366
 		DisableError:                       false,
 		LongSpanTime:                       toml.Duration{},
 		SkipRunningStmt:                    defaultSkipRunningStmt,
