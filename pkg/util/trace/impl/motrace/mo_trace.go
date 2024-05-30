@@ -106,19 +106,18 @@ func (t *MOTracer) Debug(ctx context.Context, name string, opts ...trace.SpanSta
 
 func (t *MOTracer) IsEnable(opts ...trace.SpanStartOption) bool {
 	var cfg trace.SpanConfig
-	if !t.provider.IsEnable() {
-		return false
-	}
 	for idx := range opts {
 		opts[idx].ApplySpanStart(&cfg)
 	}
 
+	enable := t.provider.IsEnable()
+
 	// check if is this span kind controlled by mo_ctl.
 	if has, state, _ := trace.IsMOCtledSpan(cfg.Kind); has {
-		return state
+		return enable && state
 	}
 
-	return true
+	return enable
 }
 
 var _ trace.Span = (*MOHungSpan)(nil)
