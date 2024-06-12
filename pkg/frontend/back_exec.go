@@ -29,12 +29,12 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/container/batch"
 	"github.com/matrixorigin/matrixone/pkg/defines"
+	"github.com/matrixorigin/matrixone/pkg/frontend/constant"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/pb/plan"
 	"github.com/matrixorigin/matrixone/pkg/pb/timestamp"
 	"github.com/matrixorigin/matrixone/pkg/sql/compile"
 	"github.com/matrixorigin/matrixone/pkg/sql/parsers"
-	"github.com/matrixorigin/matrixone/pkg/sql/parsers/dialect"
 	"github.com/matrixorigin/matrixone/pkg/sql/parsers/dialect/mysql"
 	"github.com/matrixorigin/matrixone/pkg/sql/parsers/tree"
 	plan2 "github.com/matrixorigin/matrixone/pkg/sql/plan"
@@ -286,13 +286,7 @@ func doComQueryInBack(backSes *backSession, execCtx *ExecCtx,
 	for i, cw := range cws {
 		backSes.mrs = &MysqlResultSet{}
 		stmt := cw.GetAst()
-		fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
-		stmt.Format(fmtCtx)
-		backSes.Info(execCtx.reqCtx, "backExec.doComQueryInBack exec", zap.String("sql", fmtCtx.String()))
-		if backSes.GetTxnHandler().InActiveTxn() {
-			txnH := backSes.GetTxnHandler()
-			backSes.SetTxnId(txnH.GetTxn().Txn().ID)
-		}
+		_, _ = RecordStatement(execCtx.reqCtx, backSes.upstream, proc, cw, time.Now(), input.sql, constant.InternalSql, false)
 
 		if insertStmt, ok := stmt.(*tree.Insert); ok && input.isRestore {
 			insertStmt.IsRestore = true
