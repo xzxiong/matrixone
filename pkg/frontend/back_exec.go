@@ -286,7 +286,7 @@ func doComQueryInBack(backSes *backSession, execCtx *ExecCtx,
 	for i, cw := range cws {
 		backSes.mrs = &MysqlResultSet{}
 		stmt := cw.GetAst()
-		_, _ = RecordStatement(execCtx.reqCtx, backSes.upstream, proc, cw, time.Now(), input.sql, constant.InternalSql, false)
+		_, _ = RecordStatement(execCtx.reqCtx, backSes.upstream, proc, nil, time.Now(), input.sql, constant.InternalSql, false)
 
 		if insertStmt, ok := stmt.(*tree.Insert); ok && input.isRestore {
 			insertStmt.IsRestore = true
