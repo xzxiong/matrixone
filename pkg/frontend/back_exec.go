@@ -459,9 +459,6 @@ var NewBackgroundExec = func(
 	reqCtx context.Context,
 	upstream FeSession) BackgroundExec {
 	backSes := newBackSession(upstream, nil, "", fakeDataSetFetcher2)
-	if up, ok := upstream.(*Session); ok {
-		backSes.upstream = up
-	}
 	bh := &backExec{
 		backSes: backSes,
 	}
@@ -643,6 +640,9 @@ func newBackSession(ses FeSession, txnOp TxnOperator, db string, callBack output
 	backSes.gSysVars = ses.GetGlobalSysVars()
 	backSes.sesSysVars = ses.GetSessionSysVars()
 	backSes.uuid, _ = uuid.NewV7()
+	if up, ok := ses.(*Session); ok {
+		backSes.upstream = up
+	}
 	return backSes
 }
 
