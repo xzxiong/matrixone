@@ -488,7 +488,7 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(resultCntCol, table.Int64Field(s.ResultCount))
 
 	if s.Status == StatementStatusRunning {
-		panic(fmt.Errorf("statement is running, %v", s))
+		panic(fmt.Errorf("statement is running: %p", s))
 	}
 }
 
@@ -617,7 +617,8 @@ func (s *StatementInfo) IsZeroTxnID() bool {
 // Pls note that Report is only locked in EndStatement.
 // Pls note that Report should only call twice at most: one for status:Running, one for status:Failed/Success.
 func (s *StatementInfo) Report(ctx context.Context) {
-	fmt.Printf("ReportStatement: %p, session_id: %s, %+v\n", s, uuid.UUID(s.SessionID).String(), stack.Callers(1))
+	fmt.Printf("ReportStatement: %p, status: %s, session_id: %s, %+v\n",
+		s, uuid.UUID(s.SessionID).String(), s.Status.String(), stack.Callers(1))
 	ReportStatement(ctx, s)
 }
 
