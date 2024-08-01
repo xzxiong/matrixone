@@ -277,6 +277,7 @@ func NewStatementInfo() *StatementInfo {
 	s := stmtPool.Get().(*StatementInfo)
 	s.statsArray.Reset()
 	s.stated = false
+	fmt.Printf("NewStatementInfo: %p, %+v\n", s, stack.Callers(1))
 	return s
 }
 
