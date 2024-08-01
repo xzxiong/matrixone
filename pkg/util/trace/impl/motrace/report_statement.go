@@ -470,6 +470,10 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(queryTypeCol, table.StringField(s.QueryType))
 	row.SetColumnVal(aggrCntCol, table.Int64Field(s.AggrCount))
 	row.SetColumnVal(resultCntCol, table.Int64Field(s.ResultCount))
+
+	if s.Status == StatementStatusRunning {
+		panic(fmt.Errorf("statement is running, %v", s))
+	}
 }
 
 // calculateAggrMemoryBytes return scale = statistic.Decimal128ToFloat64Scale float64 val
