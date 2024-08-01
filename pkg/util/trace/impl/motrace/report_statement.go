@@ -83,8 +83,9 @@ func StatementInfoNew(i table.Item, ctx context.Context) table.Item {
 		stmt.StmtBuilder.WriteString(s.Statement)
 
 		if stmt.Status == StatementStatusRunning {
-			panic(fmt.Errorf("Statement(Running): %v", stmt))
+			panic(fmt.Errorf("Statement(Running): %p, %v", stmt, stmt))
 		}
+		fmt.Printf("StatementInfoNew: %p\n", stmt)
 
 		return stmt
 	}
@@ -96,8 +97,9 @@ func StatementInfoUpdate(ctx context.Context, existing, new table.Item) {
 	e := existing.(*StatementInfo)
 	n := new.(*StatementInfo)
 	if e.Status == StatementStatusRunning {
-		panic(fmt.Errorf("Statement(Running): %v", e))
+		panic(fmt.Errorf("Statement(Running): %p, %v", e, e))
 	}
+	fmt.Printf("StatementInfoUpdate: %p\n", e)
 	// nil aggregated stmt record's txn-id, if including diff transactions.
 	if e.TransactionID != n.TransactionID {
 		e.TransactionID = NilTxnID
@@ -140,9 +142,10 @@ func StatementInfoFilter(i table.Item) bool {
 	// Attempt to perform a type assertion to *StatementInfo
 	statementInfo, ok := i.(*StatementInfo)
 
-	if statementInfo.Status == StatementStatusRunning {
-		panic(fmt.Errorf("Statement(Running): %v", statementInfo))
+	if stmt := statementInfo; stmt.Status == StatementStatusRunning {
+		panic(fmt.Errorf("Statement(Running): %p, %v", stmt, stmt))
 	}
+	fmt.Printf("StatementInfoFilter: %p\n", statementInfo)
 	if !ok {
 		// The item couldn't be cast to *StatementInfo
 		return false
