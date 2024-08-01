@@ -34,6 +34,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/metric"
 	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
+	"github.com/matrixorigin/matrixone/pkg/util/stack"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 
 	"github.com/google/uuid"
@@ -342,6 +343,7 @@ func (s *StatementInfo) freeNoLocked() {
 }
 
 func (s *StatementInfo) free() {
+	fmt.Printf("StatementInfoFree: %p, %+v\n", s, stack.Callers(1))
 	s.StatementID = NilStmtID
 	s.TransactionID = NilTxnID
 	s.SessionID = NilSesID
