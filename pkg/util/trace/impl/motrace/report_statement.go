@@ -617,6 +617,7 @@ func (s *StatementInfo) IsZeroTxnID() bool {
 // Pls note that Report is only locked in EndStatement.
 // Pls note that Report should only call twice at most: one for status:Running, one for status:Failed/Success.
 func (s *StatementInfo) Report(ctx context.Context) {
+	fmt.Printf("ReportStatement: %p, session_id: %s, %+v\n", s, uuid.UUID(s.SessionID).String(), stack.Callers(1))
 	ReportStatement(ctx, s)
 }
 
