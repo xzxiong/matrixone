@@ -640,6 +640,9 @@ func (s *StatementInfo) EndStatement(ctx context.Context, err error, sentRows in
 		// --- Start of metric part
 		// duration is filled in s.MarkResponseAt()
 		incStatementCounter(s.Account, s.QueryType)
+		if s.Duration < 0 {
+			panic(fmt.Errorf("panic counter cannot decrease in value, stmt: %v", s))
+		}
 		addStatementDurationCounter(s.Account, s.QueryType, s.Duration)
 		// --- END of metric part
 		if err != nil {
