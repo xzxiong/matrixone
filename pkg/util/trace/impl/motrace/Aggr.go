@@ -16,6 +16,7 @@ package motrace
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -107,6 +108,9 @@ func (a *Aggregator) PopResultsBeforeWindow(end time.Time) []table.Item {
 	results := make([]table.Item, 0, len(a.Grouped))
 	for key, group := range a.Grouped {
 		if key.Before(end) {
+			if stmt, ok := group.(*StatementInfo); !ok || stmt.Status == StatementStatusRunning {
+				panic(fmt.Errorf("Statement(Running): ok: %v, %v", ok, stmt))
+			}
 			results = append(results, group)
 			delete(a.Grouped, key) // fix mem-leak issue
 		}
