@@ -106,6 +106,7 @@ func (a *Aggregator) PopResultsBeforeWindow(end time.Time) []table.Item {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 	results := make([]table.Item, 0, len(a.Grouped))
+	oldLength := len(a.Grouped)
 	for key, group := range a.Grouped {
 		if key.Before(end) {
 			stmt, ok := group.(*StatementInfo)
@@ -117,5 +118,10 @@ func (a *Aggregator) PopResultsBeforeWindow(end time.Time) []table.Item {
 			delete(a.Grouped, key) // fix mem-leak issue
 		}
 	}
+	fmt.Printf("PopResultsBeforeWindow, old, result, new: %d, %d, %d\n",
+		oldLength,
+		len(results),
+		len(a.Grouped),
+	)
 	return results
 }
