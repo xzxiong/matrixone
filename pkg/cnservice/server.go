@@ -223,24 +223,7 @@ func NewService(
 	srv.server = server
 	srv.storeEngine = pu.StorageEngine
 
-	srv.requestHandler = func(ctx context.Context,
-		cnAddr string,
-		message morpc.Message,
-		cs morpc.ClientSession,
-		engine engine.Engine,
-		fService fileservice.FileService,
-		lockService lockservice.LockService,
-		queryClient qclient.QueryClient,
-		hakeeper logservice.CNHAKeeperClient,
-		udfService udf.Service,
-		cli client.TxnClient,
-		aicm *defines.AutoIncrCacheManager,
-		messageAcquirer func() morpc.Message) error {
-		return nil
-	}
-	for _, opt := range options {
-		opt(srv)
-	}
+	// note: remove dup code. more https://github.com/matrixorigin/matrixone/issues/17842#issuecomment-2264521241
 
 	// TODO: global client need to refactor
 	c, err := cnclient.NewPipelineClient(
