@@ -545,6 +545,7 @@ loop:
 	for {
 		select {
 		default:
+			wait := time.Now()
 			i, got, err := c.awakeQueue.Poll(time.Second)
 			if !got {
 				if errors.Is(err, ring.ErrDisposed) {
@@ -553,9 +554,11 @@ loop:
 				if errors.Is(err, ring.ErrTimeout) {
 					v2.TraceCollectorTimeoutCounter.Inc()
 				}
+				v2.TraceCollectorConsumeWaitDurationHistogram.Observe(time.Since(wait).Seconds())
 				continue
 			}
 			start := time.Now()
+			v2.TraceCollectorConsumeWaitDurationHistogram.Observe(start.Sub(wait).Seconds())
 			c.mux.RLock()
 			if buf, has := c.buffers[i.GetName()]; !has {
 				c.logger.Debug("doCollect: init buffer", zap.Int("idx", idx), zap.String("item", i.GetName()))
