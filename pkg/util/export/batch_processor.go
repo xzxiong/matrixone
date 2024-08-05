@@ -327,7 +327,7 @@ func NewMOCollector(
 		ctx:            ctx,
 		logger:         morun.ServiceRuntime(service).Logger().Named(LoggerNameMOCollector).With(logutil.Discardable()),
 		buffers:        make(map[string]*bufferHolder),
-		awakeQueue:     ring.NewRingBuffer[batchpipe.HasName](defaultRingBufferSize),
+		awakeQueue:     ring.NewRingBuffer[batchpipe.HasName](defaultRingBufferSize, ring.WithScheduleCount(1e5 /*~=1ms/10ns*/)),
 		awakeGenerate:  make(chan generateReq, 16),
 		awakeBatch:     make(chan exportReq),
 		stopCh:         make(chan struct{}),
@@ -537,16 +537,17 @@ func (c *MOCollector) releaseBuffer() {
 // doCollect handle all item accept work, send it to the corresponding buffer
 // goroutine worker
 func (c *MOCollector) doCollect(idx int) {
+	var startWait = time.Now()
 	defer c.stopWait.Done()
 	ctx, span := trace.Start(c.ctx, "MOCollector.doCollect")
 	defer span.End()
 	c.logger.Debug("doCollect %dth: start", zap.Int("idx", idx))
+
 loop:
 	for {
 		select {
 		default:
-			wait := time.Now()
-			i, got, err := c.awakeQueue.Poll(time.Second)
+			i, got, err := c.awakeQueue.Pop()
 			if !got {
 				if errors.Is(err, ring.ErrDisposed) {
 					v2.TraceCollectorDisposedCounter.Inc()
@@ -554,11 +555,14 @@ loop:
 				if errors.Is(err, ring.ErrTimeout) {
 					v2.TraceCollectorTimeoutCounter.Inc()
 				}
-				v2.TraceCollectorConsumeWaitDurationHistogram.Observe(time.Since(wait).Seconds())
+				if errors.Is(err, ring.ErrEmpty) {
+					v2.TraceCollectorEmptyCounter.Inc()
+				}
+				time.Sleep(time.Millisecond)
 				continue
 			}
 			start := time.Now()
-			v2.TraceCollectorConsumeWaitDurationHistogram.Observe(start.Sub(wait).Seconds())
+			v2.TraceCollectorConsumeDelayDurationHistogram.Observe(start.Sub(startWait).Seconds())
 			c.mux.RLock()
 			if buf, has := c.buffers[i.GetName()]; !has {
 				c.logger.Debug("doCollect: init buffer", zap.Int("idx", idx), zap.String("item", i.GetName()))
@@ -581,6 +585,7 @@ loop:
 				c.mux.RUnlock()
 			}
 			v2.TraceCollectorConsumeDurationHistogram.Observe(time.Since(start).Seconds())
+			startWait = time.Now() // next Round
 		case <-c.stopCh:
 			break loop
 		}
