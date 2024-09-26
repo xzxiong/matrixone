@@ -30,6 +30,10 @@ var tenantUpgEntries = []versions.UpgradeEntry{
 	upg_mo_retention,
 	upg_information_schema_columns,
 	upg_information_schema_schemata,
+	upg_rename_system_stmt_info_120,
+	upg_create_system_stmt_info_130,
+	upg_rename_system_metrics_metric_120,
+	upg_create_system_metrics_metric_130,
 }
 
 const viewServerSnapshotUsage = "server_snapshot_usage"
