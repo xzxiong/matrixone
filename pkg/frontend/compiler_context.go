@@ -310,11 +310,11 @@ func (tcc *TxnCompilerContext) getRelation(dbName string, tableName string, sub 
 
 	//for system_metrics.metric and system.statement_info,
 	//it is special under the no sys account, should switch into the sys account first.
-	if dbName == catalog.MO_SYSTEM && tableName == catalog.MO_STATEMENT {
+	if dbName == catalog.MO_SYSTEM && strings.HasPrefix(tableName, catalog.MO_STATEMENT) {
 		tempCtx = defines.AttachAccountId(tempCtx, uint32(sysAccountID))
 	}
 
-	if dbName == catalog.MO_SYSTEM_METRICS && (tableName == catalog.MO_METRIC || tableName == catalog.MO_SQL_STMT_CU) {
+	if dbName == catalog.MO_SYSTEM_METRICS && (strings.HasPrefix(tableName, catalog.MO_METRIC) || strings.HasPrefix(tableName, catalog.MO_SQL_STMT_CU)) {
 		tempCtx = defines.AttachAccountId(tempCtx, uint32(sysAccountID))
 	}
 

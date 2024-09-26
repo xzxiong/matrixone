@@ -76,11 +76,11 @@ func SplitTableAndColumn(name string) (string, string) {
 }
 
 func TableIsLoggingTable(dbName string, tableName string) bool {
-	if tableName == "statement_info" && dbName == "system" {
+	if strings.HasPrefix(tableName, catalog.MO_STATEMENT) && dbName == catalog.MO_SYSTEM {
 		return true
-	} else if tableName == "metric" && dbName == "system_metrics" {
+	} else if strings.HasPrefix(tableName, catalog.MO_METRIC) && dbName == catalog.MO_SYSTEM_METRICS {
 		return true
-	} else if tableName == catalog.MO_SQL_STMT_CU && dbName == catalog.MO_SYSTEM_METRICS {
+	} else if strings.HasPrefix(tableName, catalog.MO_SQL_STMT_CU) && dbName == catalog.MO_SYSTEM_METRICS {
 		return true
 	}
 	return false
