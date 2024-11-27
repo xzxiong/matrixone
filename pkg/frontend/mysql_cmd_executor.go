@@ -137,10 +137,13 @@ func transferSessionConnType2StatisticConnType(c ConnType) statistic.ConnType {
 	}
 }
 
-var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Process, cw ComputationWrapper, envBegin time.Time, envStmt, sqlType string, useEnv bool) (context.Context, error) {
+var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Process, cw ComputationWrapper, envBegin time.Time, envStmt, sqlType string, useEnv bool,
+	isBinaryExecute bool, // normally is input.stmt
+) (context.Context, error) {
 	// set StatementID
 	var stmID uuid.UUID
 	var statement tree.Statement = nil
+	var execSql string
 	var text string
 	if cw != nil {
 		copy(stmID[:], cw.GetUUID())
@@ -148,7 +151,13 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 
 		ses.ast = statement
 
-		execSql := makeExecuteSql(ctx, ses, statement)
+		if isBinaryExecute {
+			// case: COM_STMT_EXECUTE in ExecRequest
+			execSql = makeExecuteSql(ctx, ses, inputStmt)
+		} else {
+			// case: COM_QUERY in ExecRequest
+			execSql = makeExecuteSql(ctx, ses, statement)
+		}
 		if len(execSql) != 0 {
 			bb := strings.Builder{}
 			bb.WriteString(envStmt)
@@ -267,14 +276,14 @@ var RecordParseErrorStatement = func(ctx context.Context, ses *Session, proc *pr
 			if i < len(sqlTypes) {
 				sqlType = sqlTypes[i]
 			}
-			ctx, err = RecordStatement(ctx, ses, proc, nil, envBegin, sql, sqlType, true)
+			ctx, err = RecordStatement(ctx, ses, proc, nil, envBegin, sql, sqlType, true, false)
 			if err != nil {
 				return nil, err
 			}
 			ses.tStmt.EndStatement(ctx, retErr, 0, 0, 0)
 		}
 	} else {
-		ctx, err = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true)
+		ctx, err = RecordStatement(ctx, ses, proc, nil, envBegin, "", sqlType, true, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2990,7 +2999,7 @@ func doComQuery(ses *Session, execCtx *ExecCtx, input *UserInput) (retErr error)
 		stmt := cw.GetAst()
 		sqlType := input.getSqlSourceType(i)
 		var err2 error
-		execCtx.reqCtx, err2 = RecordStatement(execCtx.reqCtx, ses, proc, cw, beginInstant, sqlRecord[i], sqlType, singleStatement)
+		execCtx.reqCtx, err2 = RecordStatement(execCtx.reqCtx, ses, proc, cw, beginInstant, sqlRecord[i], sqlType, singleStatement, input.isBinaryProtExecute)
 		if err2 != nil {
 			return err2
 		}
@@ -3180,6 +3189,7 @@ func ExecRequest(ses *Session, execCtx *ExecCtx, req *Request) (resp *Response, 
 	case COM_STMT_EXECUTE:
 		ses.SetCmd(COM_STMT_EXECUTE)
 		var prepareStmt *PrepareStmt
+		// 在这里提前把 Execute Statement 给解析了, 也就是 参数 和 prepared statement 在 doComQuery 中已经拿不到了。
 		sql, prepareStmt, err = parseStmtExecute(execCtx.reqCtx, ses, req.GetData().([]byte))
 		if err != nil {
 			return NewGeneralErrorResponse(COM_STMT_EXECUTE, ses.GetTxnHandler().GetServerStatus(), err), nil

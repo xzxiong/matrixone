@@ -63,7 +63,7 @@ func init() {
 }
 
 func mockRecordStatement(ctx context.Context) (context.Context, *gostub.Stubs) {
-	stubs := gostub.Stub(&RecordStatement, func(context.Context, *Session, *process.Process, ComputationWrapper, time.Time, string, string, bool) (context.Context, error) {
+	stubs := gostub.Stub(&RecordStatement, func(context.Context, *Session, *process.Process, ComputationWrapper, time.Time, string, string, bool, bool) (context.Context, error) {
 		return ctx, nil
 	})
 	return ctx, stubs
