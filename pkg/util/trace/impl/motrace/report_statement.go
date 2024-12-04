@@ -96,13 +96,16 @@ func StatementInfoUpdate(ctx context.Context, existing, new table.Item) {
 	if e.TransactionID != n.TransactionID {
 		e.TransactionID = NilTxnID
 	}
+	if len(e.Database) > 0 && e.Database != n.Database {
+		e.Database = ""
+	}
 	if e.AggrCount == 0 {
 		// initialize the AggrCount as 1 here since aggr is started
 		windowSize, _ := ctx.Value(DurationKey).(time.Duration)
 		e.StatementTag = ""
 		e.StatementFingerprint = ""
 		//e.Error = nil /* keep the Error msg */
-		e.Database = ""
+		//e.Database = ""/* keep the Database msg*/
 		duration := e.Duration
 		e.AggrMemoryTime = mustDecimal128(convertFloat64ToDecimal128(e.statsArray.GetMemorySize() * float64(duration)))
 		e.RequestAt = e.ResponseAt.Truncate(windowSize)
