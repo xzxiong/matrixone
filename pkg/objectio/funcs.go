@@ -21,6 +21,8 @@ import (
 	"slices"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/matrixorigin/matrixone/pkg/util"
 
 	"github.com/matrixorigin/matrixone/pkg/container/batch"
@@ -61,7 +63,11 @@ func ReadExtent(
 		return
 	}
 	if tname == "8192row_int" {
-		logutil.Infof("liubo: fs read duration %v", time.Since(start0))
+		logutil.Info("liubo: fs read duration", zap.Duration("duration", time.Since(start0)),
+			zap.String("filepath", name),
+			zap.Uint64("policy", uint64(policy)),
+			zap.String("policy_str", fmt.Sprintf("%x", uint64(policy))),
+		)
 	}
 	if ioVec.Entries[0].CachedData == nil {
 		logutil.Errorf("ReadExtent: ioVec.Entries[0].CachedData is nil, name: %s, extent: %v",
