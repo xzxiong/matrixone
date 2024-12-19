@@ -116,6 +116,18 @@ func explainResourceOverview(phy *PhyPlan, statsInfo *statistic.StatsInfo, optio
 					statsInfo.PlanStage.BuildPlanS3Request.DeleteMul,
 				))
 				buffer.WriteString(fmt.Sprintf("\t\t- Call Stats Duration: %dns \n", statsInfo.PlanStage.BuildPlanStatsDuration))
+<<<<<<< Updated upstream
+=======
+				buffer.WriteString(fmt.Sprintf("\t\t- Call Stats IO Consumption: %dns \n", statsInfo.PlanStage.BuildPlanStatsIOConsumption))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase1 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase1Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase2 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase2Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase3 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase3Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase4 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase4Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase5 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase5Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase6 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase6Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase7 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase7Duration))
+				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase8 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase8Duration))
+>>>>>>> Stashed changes
 
 				//-------------------------------------------------------------------------------------------------------
 				buffer.WriteString("\tQuery Compile Stage:\n")
