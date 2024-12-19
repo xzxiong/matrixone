@@ -313,6 +313,9 @@ type StatsInfo struct {
 		StatsCalcPhase6Duration int64 `json:"StatsCalcPhase6Duration"` // unit: ns
 		StatsCalcPhase7Duration int64 `json:"StatsCalcPhase7Duration"` // unit: ns
 		StatsCalcPhase8Duration int64 `json:"StatsCalcPhase8Duration"` // unit: ns
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 	}
 
@@ -617,6 +620,9 @@ func (stats *StatsInfo) AddStatsCalcPhase8Duration(d time.Duration) {
 	atomic.AddInt64(&stats.PlanStage.StatsCalcPhase8Duration, int64(d))
 }
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 func (stats *StatsInfo) AddBuildPlanResolveVarConsumption(d time.Duration) {
 	if stats == nil {

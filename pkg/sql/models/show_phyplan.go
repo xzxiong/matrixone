@@ -127,6 +127,9 @@ func explainResourceOverview(phy *PhyPlan, statsInfo *statistic.StatsInfo, optio
 				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase6 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase6Duration))
 				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase7 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase7Duration))
 				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase8 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase8Duration))
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 				//-------------------------------------------------------------------------------------------------------
