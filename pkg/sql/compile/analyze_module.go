@@ -539,8 +539,6 @@ func explainResourceOverview(queryResult *util.RunResult, statsInfo *statistic.S
 					statsInfo.PlanStage.BuildPlanS3Request.DeleteMul,
 				))
 				buffer.WriteString(fmt.Sprintf("\t\t- Call Stats Duration: %dns \n", statsInfo.PlanStage.BuildPlanStatsDuration))
-<<<<<<< Updated upstream
-=======
 				buffer.WriteString(fmt.Sprintf("\t\t- Call Stats IO Consumption: %dns \n", statsInfo.PlanStage.BuildPlanStatsIOConsumption))
 				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase1 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase1Duration))
 				buffer.WriteString(fmt.Sprintf("\t\t- Calc StatsPhase2 Duration: %dns \n", statsInfo.PlanStage.StatsCalcPhase2Duration))
@@ -553,7 +551,6 @@ func explainResourceOverview(queryResult *util.RunResult, statsInfo *statistic.S
 				buffer.WriteString(fmt.Sprintf("\t\t- Logic1 In Phase3 Duration: %dns \n", statsInfo.PlanStage.Logic1InPhase3Duration))
 				buffer.WriteString(fmt.Sprintf("\t\t- Logic2 In Phase3 Duration: %dns \n", statsInfo.PlanStage.Logic2InPhase3Duration))
 				buffer.WriteString(fmt.Sprintf("\t\t- Logic3 In Phase3 Duration: %dns \n", statsInfo.PlanStage.Logic3InPhase3Duration))
->>>>>>> Stashed changes
 
 				//-------------------------------------------------------------------------------------------------------
 				buffer.WriteString("\tQuery Compile Stage:\n")

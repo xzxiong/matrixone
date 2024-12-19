@@ -61,11 +61,7 @@ func ReadExtent(
 		return
 	}
 	if tid == 272515 {
-<<<<<<< Updated upstream
-		logutil.Infof("liubo: vvv duration %v", time.Since(start0))
-=======
 		logutil.Infof("liubo: fs read duration %v", time.Since(start0))
->>>>>>> Stashed changes
 	}
 	if ioVec.Entries[0].CachedData == nil {
 		logutil.Errorf("ReadExtent: ioVec.Entries[0].CachedData is nil, name: %s, extent: %v",
@@ -95,13 +91,9 @@ func ReadBloomFilter(
 		extent,
 		policy,
 		fs,
-<<<<<<< Updated upstream
 		constructorFactory,
 		0,
 	); err != nil {
-=======
-		constructorFactory, 0); err != nil {
->>>>>>> Stashed changes
 		return
 	}
 

@@ -242,11 +242,7 @@ func FastLoadObjectMeta(
 	start0 := time.Now()
 	defer func() {
 		if tt == 272515 {
-<<<<<<< Updated upstream
-			logutil.Infof("liubo: fast duration %v", time.Since(start0))
-=======
 			logutil.Infof("liubo: fast load duration %v", time.Since(start0))
->>>>>>> Stashed changes
 		}
 	}()
 	extent := location.Extent()

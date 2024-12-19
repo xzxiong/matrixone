@@ -104,10 +104,7 @@ func (tbl *txnTable) Stats(ctx context.Context, sync bool) (*pb.StatsInfo, error
 		return nil, err
 	}
 	stats.AddStatsCalcPhase7Duration(time.Since(start0))
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 	if !tbl.db.op.IsSnapOp() {
 		start1 := time.Now()
 		ss := tbl.getEngine().Stats(ctx, pb.StatsInfoKey{
