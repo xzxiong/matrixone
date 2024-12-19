@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/matrixorigin/matrixone/pkg/util"
 
@@ -42,6 +43,7 @@ func ReadExtent(
 	policy fileservice.Policy,
 	fs fileservice.FileService,
 	factory CacheConstructorFactory,
+	tname string,
 ) (buf []byte, err error) {
 	ioVec := &fileservice.IOVector{
 		FilePath: name,
@@ -54,8 +56,12 @@ func ReadExtent(
 		Size:        int64(extent.Length()),
 		ToCacheData: factory(int64(extent.OriginSize()), extent.Alg()),
 	}
+	start0 := time.Now()
 	if err = fs.Read(ctx, ioVec); err != nil {
 		return
+	}
+	if tname == "8192row_int" {
+		logutil.Infof("liubo: fs read duration %v", time.Since(start0))
 	}
 	if ioVec.Entries[0].CachedData == nil {
 		logutil.Errorf("ReadExtent: ioVec.Entries[0].CachedData is nil, name: %s, extent: %v",
@@ -85,7 +91,7 @@ func ReadBloomFilter(
 		extent,
 		policy,
 		fs,
-		constructorFactory); err != nil {
+		constructorFactory, ""); err != nil {
 		return
 	}
 
@@ -107,7 +113,7 @@ func ReadObjectMeta(
 	fs fileservice.FileService,
 ) (meta ObjectMeta, err error) {
 	var v []byte
-	if v, err = ReadExtent(ctx, name, extent, policy, fs, constructorFactory); err != nil {
+	if v, err = ReadExtent(ctx, name, extent, policy, fs, constructorFactory, ""); err != nil {
 		return
 	}
 	meta = MustObjectMeta(v)

@@ -611,12 +611,18 @@ func (gs *GlobalStats) broadcastStats(key pb.StatsInfoKey) {
 }
 
 func (gs *GlobalStats) updateTableStats(key pb.StatsInfoKey) {
+	start0 := time.Now()
+	defer func() {
+		logutil.Infof("liubo: update duration %v", time.Since(start0))
+	}()
 	if !gs.shouldUpdate(key) {
 		return
 	}
 
+	start1 := time.Now()
 	// wait until the table's logtail has been updated.
 	gs.waitLogtailUpdated(key.TableID)
+	logutil.Infof("liubo: wait duration %v", time.Since(start1))
 
 	// updated is used to mark that the stats info is updated.
 	var updated bool
@@ -666,7 +672,7 @@ func (gs *GlobalStats) doUpdate(key pb.StatsInfoKey, stats *pb.StatsInfo) bool {
 		approxObjectNum,
 		stats,
 	)
-	if err := UpdateStats(gs.ctx, req, gs.concurrentExecutor); err != nil {
+	if err := UpdateStats(gs.ctx, req, gs.concurrentExecutor, table.Name); err != nil {
 		logutil.Errorf("failed to init stats info for table %v, err: %v", key, err)
 		return false
 	}
@@ -711,7 +717,7 @@ func getMinMaxValueByFloat64(typ types.Type, buf []byte) float64 {
 
 // get ndv, minval , maxval, datatype from zonemap. Retrieve all columns except for rowid, return accurate number of objects
 func updateInfoFromZoneMap(
-	ctx context.Context, req *updateStatsRequest, info *plan2.InfoFromZoneMap, executor ConcurrentExecutor,
+	ctx context.Context, req *updateStatsRequest, info *plan2.InfoFromZoneMap, executor ConcurrentExecutor, name string,
 ) error {
 	start := time.Now()
 	defer func() {
@@ -727,7 +733,7 @@ func updateInfoFromZoneMap(
 	var init bool
 	onObjFn := func(obj logtailreplay.ObjectEntry) error {
 		location := obj.Location()
-		objMeta, err := objectio.FastLoadObjectMeta(ctx, &location, false, fs)
+		objMeta, err := objectio.FastLoadObjectMeta(ctx, &location, false, fs, name)
 		if err != nil {
 			return err
 		}
@@ -819,6 +825,7 @@ func updateInfoFromZoneMap(
 		req.ts,
 		onObjFn,
 		executor,
+		name,
 	); err != nil {
 		return err
 	}
@@ -827,7 +834,7 @@ func updateInfoFromZoneMap(
 }
 
 // UpdateStats is the main function to calculate and update the stats for scan node.
-func UpdateStats(ctx context.Context, req *updateStatsRequest, executor ConcurrentExecutor) error {
+func UpdateStats(ctx context.Context, req *updateStatsRequest, executor ConcurrentExecutor, name string) error {
 	start := time.Now()
 	defer func() {
 		v2.TxnStatementUpdateStatsDurationHistogram.Observe(time.Since(start).Seconds())
@@ -839,7 +846,7 @@ func UpdateStats(ctx context.Context, req *updateStatsRequest, executor Concurre
 	}
 	info.ApproxObjectNumber = req.approxObjectNum
 	baseTableDef := req.tableDef
-	if err := updateInfoFromZoneMap(ctx, req, info, executor); err != nil {
+	if err := updateInfoFromZoneMap(ctx, req, info, executor, name); err != nil {
 		return err
 	}
 	plan2.UpdateStatsInfo(info, baseTableDef, req.statsInfo)

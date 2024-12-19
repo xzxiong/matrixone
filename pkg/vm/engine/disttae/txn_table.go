@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,17 +96,23 @@ func (tbl *txnTable) PrefetchAllMeta(ctx context.Context) bool {
 }
 
 func (tbl *txnTable) Stats(ctx context.Context, sync bool) (*pb.StatsInfo, error) {
+	stats := statistic.StatsInfoFromContext(ctx)
+	start0 := time.Now()
 	_, err := tbl.getPartitionState(ctx)
 	if err != nil {
 		logutil.Errorf("failed to get partition state of table %d: %v", tbl.tableId, err)
 		return nil, err
 	}
+	stats.AddStatsCalcPhase7Duration(time.Since(start0))
 	if !tbl.db.op.IsSnapOp() {
-		return tbl.getEngine().Stats(ctx, pb.StatsInfoKey{
+		start1 := time.Now()
+		ss := tbl.getEngine().Stats(ctx, pb.StatsInfoKey{
 			AccId:      tbl.accountId,
 			DatabaseID: tbl.db.databaseId,
 			TableID:    tbl.tableId,
-		}, sync), nil
+		}, sync)
+		stats.AddStatsCalcPhase8Duration(time.Since(start1))
+		return ss, nil
 	}
 	info, err := tbl.stats(ctx)
 	if err != nil {
@@ -135,7 +142,7 @@ func (tbl *txnTable) stats(ctx context.Context) (*pb.StatsInfo, error) {
 		approxObjectNum,
 		stats,
 	)
-	if err := UpdateStats(ctx, req, nil); err != nil {
+	if err := UpdateStats(ctx, req, nil, ""); err != nil {
 		logutil.Errorf("failed to init stats info for table %d", tbl.tableId)
 		return nil, err
 	}
@@ -242,6 +249,7 @@ func ForeachVisibleDataObject(
 	ts types.TS,
 	fn func(obj logtailreplay.ObjectEntry) error,
 	executor ConcurrentExecutor,
+	name string,
 ) (err error) {
 	iter, err := state.NewObjectsIter(ts, true, false)
 	if err != nil {
@@ -249,6 +257,7 @@ func ForeachVisibleDataObject(
 	}
 	defer iter.Close()
 	var wg sync.WaitGroup
+	start0 := time.Now()
 	for iter.Next() {
 		entry := iter.Entry()
 		if executor != nil {
@@ -265,6 +274,9 @@ func ForeachVisibleDataObject(
 	}
 	if executor != nil {
 		wg.Wait()
+	}
+	if name == "8192row_int" {
+		logutil.Infof("liubo: forech duration %v", time.Since(start0))
 	}
 	return
 }
@@ -338,6 +350,7 @@ func (tbl *txnTable) MaxAndMinValues(ctx context.Context) ([][2]any, []uint8, er
 		types.TimestampToTS(tbl.db.op.SnapshotTS()),
 		onObjFn,
 		nil,
+		"",
 	); err != nil {
 		return nil, nil, err
 	}
@@ -453,6 +466,7 @@ func (tbl *txnTable) GetColumMetadataScanInfo(ctx context.Context, name string) 
 		types.TimestampToTS(tbl.db.op.SnapshotTS()),
 		onObjFn,
 		nil,
+		"",
 	); err != nil {
 		return nil, err
 	}
@@ -2227,7 +2241,7 @@ func (tbl *txnTable) GetNonAppendableObjectStats(ctx context.Context) ([]objecti
 		}
 		objStats = append(objStats, obj.ObjectStats)
 		return nil
-	}, nil)
+	}, nil, "")
 	if err != nil {
 		return nil, err
 	}

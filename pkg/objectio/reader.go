@@ -138,7 +138,7 @@ func (r *objectReaderV1) ReadMeta(
 	}
 	if r.oname != nil {
 		// read table data block
-		if meta, err = LoadObjectMetaByExtent(ctx, r.oname, r.metaExt, false, r.metaReadPolicy, r.fs); err != nil {
+		if meta, err = LoadObjectMetaByExtent(ctx, r.oname, r.metaExt, false, r.metaReadPolicy, r.fs, ""); err != nil {
 			return
 		}
 	} else {
@@ -277,7 +277,7 @@ func (r *objectReaderV1) ReadExtent(
 		&extent,
 		r.metaReadPolicy,
 		r.fs,
-		constructorFactory)
+		constructorFactory, "")
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +343,7 @@ func (r *objectReaderV1) ReadAllMeta(
 
 func (r *objectReaderV1) ReadHeader(ctx context.Context, m *mpool.MPool) (h Header, err error) {
 	ext := NewExtent(0, 0, HeaderSize, HeaderSize)
-	v, err := ReadExtent(ctx, r.name, &ext, r.metaReadPolicy, r.fs, constructorFactory)
+	v, err := ReadExtent(ctx, r.name, &ext, r.metaReadPolicy, r.fs, constructorFactory, "")
 	if err != nil {
 		return
 	}

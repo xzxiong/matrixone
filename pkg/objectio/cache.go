@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	metric "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
@@ -161,6 +162,7 @@ func LoadObjectMetaByExtent(
 	prefetch bool,
 	policy fileservice.Policy,
 	fs fileservice.FileService,
+	tname string,
 ) (meta ObjectMeta, err error) {
 	metric.FSReadReadMetaCounter.Add(1)
 	key := encodeCacheKey(*name.Short(), cacheKeyTypeMeta)
@@ -174,7 +176,7 @@ func LoadObjectMetaByExtent(
 			zap.String("name", name.String()),
 			zap.String("extent", extent.String()))
 	}
-	if v, err = ReadExtent(ctx, name.String(), extent, policy, fs, constructorFactory); err != nil {
+	if v, err = ReadExtent(ctx, name.String(), extent, policy, fs, constructorFactory, tname); err != nil {
 		return
 	}
 	meta = MustObjectMeta(v)
@@ -229,8 +231,24 @@ func FastLoadObjectMeta(
 	location *Location,
 	prefetch bool,
 	fs fileservice.FileService,
+	names ...string,
 ) (ObjectMeta, error) {
+	var tt string
+	if len(names) > 0 {
+		for _, tid := range names {
+			tt = tid
+		}
+	}
+	start0 := time.Now()
+	defer func() {
+		if tt == "8192row_int" {
+			logutil.Infof("liubo: fast load duration %v", time.Since(start0))
+		}
+	}()
 	extent := location.Extent()
 	name := location.Name()
-	return LoadObjectMetaByExtent(ctx, &name, &extent, prefetch, fileservice.SkipFullFilePreloads, fs)
+	if tt != "" {
+		return LoadObjectMetaByExtent(ctx, &name, &extent, prefetch, fileservice.SkipFullFilePreloads, fs, tt)
+	}
+	return LoadObjectMetaByExtent(ctx, &name, &extent, prefetch, fileservice.SkipFullFilePreloads, fs, "")
 }

@@ -310,6 +310,8 @@ type StatsInfo struct {
 		StatsCalcPhase4Duration int64 `json:"StatsCalcPhase4Duration"` // unit: ns
 		StatsCalcPhase5Duration int64 `json:"StatsCalcPhase5Duration"` // unit: ns
 		StatsCalcPhase6Duration int64 `json:"StatsCalcPhase6Duration"` // unit: ns
+		StatsCalcPhase7Duration int64 `json:"StatsCalcPhase7Duration"` // unit: ns
+		StatsCalcPhase8Duration int64 `json:"StatsCalcPhase8Duration"` // unit: ns
 	}
 
 	// Compile phase statistics
@@ -595,6 +597,20 @@ func (stats *StatsInfo) AddStatsCalcPhase6Duration(d time.Duration) {
 		return
 	}
 	atomic.AddInt64(&stats.PlanStage.StatsCalcPhase6Duration, int64(d))
+}
+
+func (stats *StatsInfo) AddStatsCalcPhase7Duration(d time.Duration) {
+	if stats == nil {
+		return
+	}
+	atomic.AddInt64(&stats.PlanStage.StatsCalcPhase7Duration, int64(d))
+}
+
+func (stats *StatsInfo) AddStatsCalcPhase8Duration(d time.Duration) {
+	if stats == nil {
+		return
+	}
+	atomic.AddInt64(&stats.PlanStage.StatsCalcPhase8Duration, int64(d))
 }
 
 func (stats *StatsInfo) AddBuildPlanResolveVarConsumption(d time.Duration) {
