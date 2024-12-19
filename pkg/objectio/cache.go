@@ -241,8 +241,8 @@ func FastLoadObjectMeta(
 	}
 	start0 := time.Now()
 	defer func() {
-		if tt == 272515 {
-			logutil.Infof("liubo: fast load duration %v", time.Since(start0))
+		if tt > 0 {
+			logutil.Infof("liubo: fast load duration %v, tid: %d", time.Since(start0), tt)
 		}
 	}()
 	extent := location.Extent()

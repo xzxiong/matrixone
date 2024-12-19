@@ -60,8 +60,9 @@ func ReadExtent(
 	if err = fs.Read(ctx, ioVec); err != nil {
 		return
 	}
-	if tid == 272515 {
-		logutil.Infof("liubo: fs read duration %v", time.Since(start0))
+	if tid > 0 {
+		// origin: 272515
+		logutil.Infof("liubo: fs read duration %v, tid: %d", time.Since(start0), tid)
 	}
 	if ioVec.Entries[0].CachedData == nil {
 		logutil.Errorf("ReadExtent: ioVec.Entries[0].CachedData is nil, name: %s, extent: %v",

@@ -603,8 +603,8 @@ func (gs *GlobalStats) broadcastStats(key pb.StatsInfoKey) {
 func (gs *GlobalStats) updateTableStats(key pb.StatsInfoKey) {
 	start0 := time.Now()
 	defer func() {
-		if key.TableID == 272515 {
-			logutil.Infof("liubo: update duration %v", time.Since(start0))
+		if key.TableID > 0 {
+			logutil.Infof("liubo: update duration %v, tid: %d", time.Since(start0), key.TableID)
 		}
 	}()
 	if !gs.shouldUpdate(key) {
@@ -613,8 +613,8 @@ func (gs *GlobalStats) updateTableStats(key pb.StatsInfoKey) {
 
 	// wait until the table's logtail has been updated.
 	gs.waitLogtailUpdated(key.TableID)
-	if key.TableID == 272515 {
-		logutil.Infof("liubo: wait duration %v", time.Since(start0))
+	if key.TableID > 0 {
+		logutil.Infof("liubo: wait duration %v, tid: %d", time.Since(start0), key.TableID)
 	}
 
 	// updated is used to mark that the stats info is updated.

@@ -18,13 +18,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -276,8 +277,9 @@ func ForeachVisibleDataObject(
 	if executor != nil {
 		wg.Wait()
 	}
-	if tid == 272515 {
-		logutil.Infof("liubo: forech duration %v", time.Since(start0))
+	if tid > 0 {
+		// origin: 272515
+		logutil.Infof("liubo: forech duration %v, tid: %d", time.Since(start0), tid)
 	}
 	return
 }
