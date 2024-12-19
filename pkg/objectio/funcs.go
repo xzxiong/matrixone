@@ -50,7 +50,7 @@ func ReadExtent(
 	ioVec := &fileservice.IOVector{
 		FilePath: name,
 		Entries:  make([]fileservice.IOEntry, 1),
-		Policy:   policy,
+		Policy:   policy | fileservice.LogSlowEventPolicy,
 	}
 
 	ioVec.Entries[0] = fileservice.IOEntry{

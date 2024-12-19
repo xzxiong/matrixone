@@ -460,10 +460,6 @@ func (s *S3FS) Read(ctx context.Context, vector *IOVector) (err error) {
 	stats := statistic.StatsInfoFromContext(ctx)
 	ioStart := time.Now()
 	defer func() {
-		d := time.Since(ioStart)
-		if d > time.Millisecond*40 {
-			logutil.Info("liubo: fs read", zap.String("filepath", vector.FilePath), zap.Duration("runtime", d))
-		}
 		stats.AddIOAccessTimeConsumption(time.Since(ioStart))
 	}()
 
@@ -475,7 +471,11 @@ func (s *S3FS) Read(ctx context.Context, vector *IOVector) (err error) {
 	LogEvent(ctx, str_s3fs_read, vector)
 	defer func() {
 		LogEvent(ctx, str_read_return)
-		LogSlowEvent(ctx, time.Millisecond*40)
+		threshold := 500 * time.Millisecond
+		if vector.Policy.LogSlowEvent() {
+			threshold = time.Millisecond
+		}
+		LogSlowEvent(ctx, threshold)
 	}()
 
 	if len(vector.Entries) == 0 {

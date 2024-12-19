@@ -22,6 +22,7 @@ const (
 	SkipDiskCacheReads
 	SkipDiskCacheWrites
 	SkipFullFilePreloads
+	LogSlowEventPolicy
 )
 
 const (
@@ -48,4 +49,8 @@ func (c Policy) CacheIOEntry() bool {
 
 func (c Policy) CacheFullFile() bool {
 	return !c.Any(SkipFullFilePreloads)
+}
+
+func (c Policy) LogSlowEvent() bool {
+	return c.Any(LogSlowEventPolicy)
 }
