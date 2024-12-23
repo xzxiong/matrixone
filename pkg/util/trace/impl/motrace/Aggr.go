@@ -16,11 +16,16 @@ package motrace
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
+	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+	"github.com/matrixorigin/matrixone/pkg/util/stack"
 )
 
 type Aggregator struct {
@@ -73,10 +78,12 @@ func (a *Aggregator) AddItem(i table.Item) (table.Item, error) {
 		return i, ErrFilteredOut
 	}
 
-	groupedItem, exists := a.Grouped[i.Key(a.WindowSize)]
+	groupKey := i.Key(a.WindowSize)
+	logutil.Info("groupKey", zap.Any("key", groupKey))
+	groupedItem, exists := a.Grouped[groupKey]
 	if !exists {
-		groupKey := i.Key(a.WindowSize)
 		groupedItem = a.NewItemFunc(i, a.ctx)
+		logutil.Info(fmt.Sprintf("StatementInfo aggr: ori: %p, new: %p", i, groupedItem))
 		a.Grouped[groupKey] = groupedItem
 	} else {
 		a.UpdateFunc(a.ctx, groupedItem, i)
@@ -93,6 +100,7 @@ func (a *Aggregator) GetResults() []table.Item {
 	for _, group := range a.Grouped {
 		results = append(results, group)
 	}
+	logutil.Info("GetResults", zap.Int("count", len(results)))
 	return results
 }
 
@@ -109,6 +117,11 @@ func (a *Aggregator) PopResultsBeforeWindow(end time.Time) []table.Item {
 		if key.Before(end) {
 			results = append(results, group)
 			delete(a.Grouped, key) // fix mem-leak issue
+			logutil.Info(fmt.Sprintf("PopResultsBeforeWindow-removed: %p, stack: %+v", group, stack.Callers(1)),
+				zap.Any("key", group.Key(a.WindowSize)),
+			)
+		} else {
+			logutil.Info("PopResultsBeforeWindow", zap.Any("key", key))
 		}
 	}
 	return results

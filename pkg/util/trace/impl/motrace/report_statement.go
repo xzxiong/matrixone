@@ -35,6 +35,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/metric"
 	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
+	"github.com/matrixorigin/matrixone/pkg/util/stack"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 
 	"github.com/google/uuid"
@@ -269,6 +270,7 @@ func NewStatementInfo() *StatementInfo {
 	if s.Statement == nil {
 		s.Statement = make([]byte, 0, GetTracerProvider().MaxStatementSize)
 	}
+	logutil.Info(fmt.Sprintf("StatementInfo new: %p, stack: %+v", s, stack.Callers(1)))
 	return s
 }
 
@@ -353,6 +355,7 @@ func (s *StatementInfo) freeNoLocked() {
 }
 
 func (s *StatementInfo) free() {
+	logutil.Info(fmt.Sprintf("StatementInfo free: %p, stack: %+v", s, stack.Callers(1)))
 	s.StatementID = NilStmtID
 	s.TransactionID = NilTxnID
 	s.SessionID = NilSesID

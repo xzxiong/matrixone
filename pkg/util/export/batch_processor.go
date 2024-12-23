@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/matrixorigin/matrixone/pkg/common/log"
@@ -37,6 +38,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
 	"github.com/matrixorigin/matrixone/pkg/util/ring"
+	"github.com/matrixorigin/matrixone/pkg/util/stack"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace"
 )
@@ -210,6 +212,15 @@ mainL:
 			end := time.Now().Truncate(b.aggr.GetWindow())
 			results := b.aggr.PopResultsBeforeWindow(end)
 			for _, item := range results {
+				s := item.(*motrace.StatementInfo)
+				logutil.Info(fmt.Sprintf("StatementInfo aggr: %p, stack: %+v", s, stack.Callers(1)))
+				logger.Info(fmt.Sprintf("StatementInfo item: %p", s),
+					zap.Any("key", item.Key(b.aggr.GetWindow())), zap.Int64("count", s.Aggred()),
+					zap.String("statement_id", uuid.UUID(s.StatementID).String()),
+					zap.String("statement_type", s.StatementType),
+					zap.Time("request_at", s.RequestAt),
+					zap.Duration("duration", s.Duration),
+				)
 				// tips: Add() will free the {item} obj.
 				b.Add(item, false)
 			}
