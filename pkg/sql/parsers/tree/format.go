@@ -168,7 +168,7 @@ func (ctx *FmtCtx) WriteValue(t P_TYPE, v string) (int, error) {
 
 func (ctx *FmtCtx) WriteStringQuote(v string) (int, error) {
 	if ctx.templateParam {
-		return ctx.WriteString("")
+		return ctx.WriteString("?")
 	} else if ctx.quoteString {
 		return ctx.WriteString(fmt.Sprintf("%q", v))
 	} else {
