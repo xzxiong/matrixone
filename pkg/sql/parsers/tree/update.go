@@ -222,7 +222,11 @@ func (node *Load) Format(ctx *FmtCtx) {
 	} else {
 		if node.Param.ScanType == INLINE {
 			ctx.WriteString(" inline format='")
-			ctx.WriteString(node.Param.Format)
+			if ctx.templateParam {
+				ctx.WriteByte('?')
+			} else {
+				ctx.WriteString(node.Param.Format)
+			}
 			ctx.WriteString("', data='")
 			if ctx.templateParam {
 				ctx.WriteByte('?')
