@@ -30,6 +30,12 @@ func (node *ValuesClause) Format(ctx *FmtCtx) {
 			ctx.WriteString("row")
 		}
 		ctx.WriteByte('(')
+		if ctx.templateParam {
+			// output result: `values (...)`
+			ctx.WriteString("...")
+			ctx.WriteByte(')')
+			break
+		}
 		node.Rows[i].Format(ctx)
 		ctx.WriteByte(')')
 		comma = ", "
