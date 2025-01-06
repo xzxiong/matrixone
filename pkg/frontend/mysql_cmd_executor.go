@@ -175,6 +175,13 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	ses.SetSqlSourceType(sqlType)
 	ses.SetSqlOfStmt(text)
 
+	{
+		fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
+		cw.GetAst().Format(fmtCtx)
+		logutil.Info("fmtCtx", zap.String("template", fmtCtx.String()),
+			zap.String("text", text))
+	}
+
 	//note: txn id here may be empty
 	// add by #9907, set the result of last_query_id(), this will pass those isCmdFieldListSql() from client.
 	// fixme: this op leads all internal/background executor got NULL result if call last_query_id().
