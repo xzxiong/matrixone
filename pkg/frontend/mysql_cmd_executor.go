@@ -176,7 +176,7 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	ses.SetSqlOfStmt(text)
 
 	{
-		fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithQuoteString(true))
+		fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithTemplate())
 		cw.GetAst().Format(fmtCtx)
 		logutil.Info("fmtCtx", zap.String("template", fmtCtx.String()),
 			zap.String("text", text))

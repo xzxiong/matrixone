@@ -29,6 +29,8 @@ type FmtCtx struct {
 	quoteString             bool
 	singleQuoteString       bool
 	escapeSingleQuoteString bool
+	// templateParam
+	templateParam bool
 }
 
 func NewFmtCtx(dialectType dialect.DialectType, opts ...FmtCtxOption) *FmtCtx {
@@ -63,6 +65,12 @@ func WithSingleQuoteString() FmtCtxOption {
 func WithEscapeSingleQuoteString() FmtCtxOption {
 	return FmtCtxOption(func(ctx *FmtCtx) {
 		ctx.escapeSingleQuoteString = true
+	})
+}
+
+func WithTemplate() FmtCtxOption {
+	return FmtCtxOption(func(ctx *FmtCtx) {
+		ctx.templateParam = true
 	})
 }
 
@@ -138,6 +146,9 @@ func (ctx *FmtCtx) PrintExpr(currentExpr Expr, expr Expr, left bool) {
 }
 
 func (ctx *FmtCtx) WriteValue(t P_TYPE, v string) (int, error) {
+	if ctx.templateParam {
+		ctx.WriteByte('?')
+	}
 	if ctx.quoteString {
 		switch t {
 		case P_char:
@@ -156,7 +167,9 @@ func (ctx *FmtCtx) WriteValue(t P_TYPE, v string) (int, error) {
 }
 
 func (ctx *FmtCtx) WriteStringQuote(v string) (int, error) {
-	if ctx.quoteString {
+	if ctx.templateParam {
+		return ctx.WriteString("")
+	} else if ctx.quoteString {
 		return ctx.WriteString(fmt.Sprintf("%q", v))
 	} else {
 		return ctx.WriteString(v)
