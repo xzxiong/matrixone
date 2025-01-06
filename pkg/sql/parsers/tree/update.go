@@ -224,7 +224,11 @@ func (node *Load) Format(ctx *FmtCtx) {
 			ctx.WriteString(" inline format='")
 			ctx.WriteString(node.Param.Format)
 			ctx.WriteString("', data='")
-			ctx.WriteString(node.Param.Data)
+			if ctx.templateParam {
+				ctx.WriteByte('?')
+			} else {
+				ctx.WriteString(node.Param.Data)
+			}
 			if node.Param.JsonData == "" {
 				ctx.WriteString("'")
 			} else {
