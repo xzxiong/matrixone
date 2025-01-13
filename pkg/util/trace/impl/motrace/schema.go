@@ -76,6 +76,7 @@ var (
 	resultCntCol = table.Int64Column("result_count", "the number of rows of sql execution results")
 	connIdCol    = table.Int64Column("connection_id", "connection id")
 	cuCol        = table.ValueColumnWithPrec("cu", "cu cost", 4)
+	stmtTmpIdCol = table.TextColumn("statement_template_id", "note tag in statement template_id")
 
 	SingleStatementTable = &table.Table{
 		Account:  table.AccountSys,
@@ -113,6 +114,8 @@ var (
 			// mo 2.0
 			connIdCol,
 			cuCol,
+			// mo 2.1,
+			stmtTmpIdCol,
 		},
 		PrimaryKeyColumn: nil,
 		ClusterBy:        []table.Column{accountCol, reqAtCol},

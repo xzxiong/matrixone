@@ -175,13 +175,6 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 	ses.SetSqlSourceType(sqlType)
 	ses.SetSqlOfStmt(text)
 
-	{
-		fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithTemplate())
-		cw.GetAst().Format(fmtCtx)
-		logutil.Info("fmtCtx", zap.String("template", fmtCtx.String()),
-			zap.String("text", text))
-	}
-
 	//note: txn id here may be empty
 	// add by #9907, set the result of last_query_id(), this will pass those isCmdFieldListSql() from client.
 	// fixme: this op leads all internal/background executor got NULL result if call last_query_id().
@@ -226,14 +219,21 @@ var RecordStatement = func(ctx context.Context, ses *Session, proc *process.Proc
 		requestAt = time.Now()
 	}
 
+	fmtCtx := tree.NewFmtCtx(dialect.MYSQL, tree.WithTemplate())
+	cw.GetAst().Format(fmtCtx)
+	//logutil.Info("fmtCtx", zap.String("template", fmtCtx.String()),
+	//	zap.String("text", text))
+
 	stm.ConnectionId = ses.GetConnectionID()
 	stm.Account = tenant.GetTenant()
 	stm.RoleId = proc.GetSessionInfo().RoleId
 	stm.User = tenant.GetUser()
 	stm.Host = ses.respr.GetStr(PEER)
 	stm.Database = ses.respr.GetStr(DBNAME)
-	stm.StatementFingerprint = "" // fixme= (Reserved)
-	stm.StatementTag = ""         // fixme= (Reserved)
+	// cache with stmt.
+	stm.StatementFingerprint = fmtCtx.String()
+	stm.StatementTemplateId = hashString(stm.StatementFingerprint)
+	stm.StatementTag = "" // fixme= (Reserved)
 	stm.SqlSourceType = sqlType
 	stm.RequestAt = requestAt
 	stm.StatementType = getStatementType(statement).GetStatementType()

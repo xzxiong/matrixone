@@ -101,6 +101,8 @@ func StatementInfoUpdate(ctx context.Context, existing, new table.Item) {
 		windowSize, _ := ctx.Value(DurationKey).(time.Duration)
 		e.StatementTag = ""
 		e.StatementFingerprint = ""
+		// TODO: merge by StatementTemplateId
+		e.StatementTemplateId = ""
 		//e.Error = nil /* keep the Error msg */
 		e.Database = ""
 		duration := e.Duration
@@ -181,6 +183,7 @@ type StatementInfo struct {
 	Statement            []byte   `json:"statement"`
 	StmtBuilder          strings.Builder
 	StatementFingerprint string    `json:"statement_fingerprint"`
+	StatementTemplateId  string    `json:"statement_template_id"`
 	StatementTag         string    `json:"statement_tag"`
 	SqlSourceType        string    `json:"sql_source_type"`
 	RequestAt            time.Time `json:"request_at"` // see WithRequestAt
@@ -319,6 +322,7 @@ func (s *StatementInfo) Size() int64 {
 	num := int64(unsafe.Sizeof(s)) + deltaStmtContentLength + int64(
 		len(s.Account)+len(s.User)+len(s.Host)+
 			len(s.Database)+len(s.Statement)+len(s.StatementFingerprint)+len(s.StatementTag)+
+			len(s.StatementTemplateId)+
 			len(s.SqlSourceType)+len(s.StatementType)+len(s.QueryType)+len(s.jsonByte)+len(s.statsArray)*8,
 	)
 	if s.jsonByte == nil {
@@ -365,6 +369,7 @@ func (s *StatementInfo) free() {
 	s.Statement = s.Statement[:0]
 	s.StmtBuilder.Reset()
 	s.StatementFingerprint = ""
+	s.StatementTemplateId = ""
 	s.StatementTag = ""
 	s.SqlSourceType = ""
 	s.RequestAt = time.Time{}
@@ -409,6 +414,7 @@ func (s *StatementInfo) CloneWithoutExecPlan() *StatementInfo {
 	stmt.Statement = append(stmt.Statement, s.Statement...)
 	// s.StmtBuilder.Reset()
 	stmt.StatementFingerprint = s.StatementFingerprint
+	stmt.StatementTemplateId = s.StatementTemplateId
 	stmt.StatementTag = s.StatementTag
 	stmt.SqlSourceType = s.SqlSourceType
 	stmt.RequestAt = s.RequestAt
@@ -476,6 +482,7 @@ func (s *StatementInfo) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(stmtTagCol, table.StringField(s.StatementTag))
 	row.SetColumnVal(sqlTypeCol, table.StringField(s.SqlSourceType))
 	row.SetColumnVal(stmtFgCol, table.StringField(s.StatementFingerprint))
+	row.SetColumnVal(stmtTmpIdCol, table.StringField(s.StatementTemplateId))
 	row.SetColumnVal(nodeUUIDCol, table.StringField(GetNodeResource().NodeUuid))
 	row.SetColumnVal(nodeTypeCol, table.StringField(GetNodeResource().NodeType))
 	row.SetColumnVal(reqAtCol, table.TimeField(s.RequestAt))
