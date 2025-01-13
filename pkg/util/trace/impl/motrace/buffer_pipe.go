@@ -64,6 +64,7 @@ func (t batchETLHandler) NewItemBuffer(name string) bp.ItemBuffer[bp.HasName, an
 	logutil.Debugf("NewItemBuffer name: %s", name)
 	switch name {
 	case MOStatementType, SingleStatementTable.GetName():
+	case SingleStatementMetricTable.GetName():
 	case MOErrorType:
 	case MOSpanType:
 	case MOLogType:
@@ -116,6 +117,19 @@ func (t batchETLHandler) NewAggregator(ctx context.Context, name string) table.A
 				StatementInfoNew,
 				StatementInfoUpdate,
 				StatementInfoFilter,
+			)
+		}
+	case SingleStatementMetricTable.GetName():
+		// TODO: aggr add new for truncate.
+		if !GetTracerProvider().disableStmtAggregation {
+			a := StatementMetricAggregator{}
+			return NewAggregator(
+				ctx,
+				// TODO: individual window
+				GetTracerProvider().aggregationWindow,
+				a.NewFunc,
+				a.UpdateFunc,
+				a.FilterFunc,
 			)
 		}
 	case MOErrorType:

@@ -35,8 +35,9 @@ const (
 )
 const (
 	// statementInfoTbl is an EXTERNAL table
-	statementInfoTbl = "statement_info"
-	RawLogTbl        = "rawlog"
+	statementInfoTbl   = "statement_info"
+	statementMetricTbl = "statement_metric"
+	RawLogTbl          = "rawlog"
 
 	// spanInfoTbl is a view
 	spanInfoTbl  = "span_info"
@@ -77,6 +78,38 @@ var (
 	connIdCol    = table.Int64Column("connection_id", "connection id")
 	cuCol        = table.ValueColumnWithPrec("cu", "cu cost", 4)
 	stmtTmpIdCol = table.TextColumn("statement_template_id", "note tag in statement template_id")
+
+	metricNameCol = table.TextColumn("metric_name", "node of metric")
+	valueCol      = table.ValueColumn("value", "value")
+
+	SingleStatementMetricTable = &table.Table{
+		Account:  table.AccountSys,
+		Database: StatsDatabase,
+		Table:    statementMetricTbl,
+		Columns: []table.Column{
+			accountCol,
+			stmtTmpIdCol,
+			metricNameCol,
+			timestampCol,
+			valueCol,
+			stmtFgCol,
+			nodeUUIDCol,
+			nodeTypeCol,
+		},
+		PrimaryKeyColumn: nil,
+		ClusterBy:        []table.Column{accountCol, stmtTmpIdCol, metricNameCol, timestampCol},
+		// Engine
+		Engine:        table.NormalTableEngine,
+		Comment:       "record each statement and stats info" + catalog.MO_COMMENT_NO_DEL_HINT,
+		PathBuilder:   table.NewAccountDatePathBuilder(),
+		AccountColumn: &accountCol,
+		// TimestampColumn
+		TimestampColumn: &timestampCol,
+		// SupportUserAccess
+		SupportUserAccess: false,
+		// SupportConstAccess
+		SupportConstAccess: true,
+	}
 
 	SingleStatementTable = &table.Table{
 		Account:  table.AccountSys,
@@ -300,7 +333,7 @@ const (
 	sqlCreateDBConst = `create database if not exists ` + StatsDatabase
 )
 
-var tables = []*table.Table{SingleStatementTable, SingleRowLogTable}
+var tables = []*table.Table{SingleStatementTable, SingleRowLogTable, SingleStatementMetricTable}
 var views = []*table.View{logView, errorView, spanView, SqlStatementHotspotView}
 
 // InitSchemaByInnerExecutor init schema, which can access db by io.InternalExecutor on any Node.

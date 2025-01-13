@@ -156,6 +156,7 @@ func initExporter(ctx context.Context, config *tracerProviderConfig) error {
 	p.Register(&MOSpan{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	p.Register(&MOZapLog{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	p.Register(&StatementInfo{}, NewBufferPipe2CSVWorker(defaultOptions...))
+	p.Register(&StatementMetric{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	p.Register(&MOErrorHolder{}, NewBufferPipe2CSVWorker(defaultOptions...))
 	logutil.Info("init GlobalBatchProcessor")
 	if !p.Start() {
