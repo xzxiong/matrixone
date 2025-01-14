@@ -835,6 +835,10 @@ type Exprs []Expr
 
 func (node Exprs) Format(ctx *FmtCtx) {
 	prefix := ""
+	if ctx.templateParam {
+		ctx.WriteByte('?')
+		return
+	}
 	for _, n := range node {
 		ctx.WriteString(prefix)
 		n.Format(ctx)
