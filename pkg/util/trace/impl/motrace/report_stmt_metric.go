@@ -80,6 +80,11 @@ func (s *StatementMetric) Free() {
 	s.aggrCount = 0
 }
 
+func (s *StatementMetric) Clone() *StatementMetric {
+	var dst StatementMetric = *s
+	return &dst
+}
+
 func (s *StatementMetric) GetTable() *table.Table { return SingleStatementMetricTable }
 
 func (s *StatementMetric) FillRow(ctx context.Context, row *table.Row) {
@@ -98,7 +103,7 @@ type StatementMetricAggregator struct{}
 
 func (a StatementMetricAggregator) NewFunc(i table.Item, ctx context.Context) table.Item {
 	if s, ok := i.(*StatementMetric); ok {
-		return s
+		return s.Clone()
 	}
 	return nil
 }
