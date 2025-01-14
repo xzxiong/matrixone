@@ -49,6 +49,10 @@ func NewValuesClause(r []Exprs) *ValuesClause {
 }
 
 // ValuesStatement the VALUES Statement
+// example:
+// - values row(?, ?), row(?, ?), row(?, ?) order by column_0 desc
+// template:
+// - values row(?) order by column_0 desc
 type ValuesStatement struct {
 	statementImpl
 	NodeFormatter
@@ -64,6 +68,10 @@ func (node *ValuesStatement) Format(ctx *FmtCtx) {
 		prefix := ""
 		for _, row := range node.Rows {
 			ctx.WriteString(prefix + "row(")
+			if ctx.templateParam {
+				ctx.WriteByte('?')
+				break
+			}
 			comma := ""
 			for i := range row {
 				ctx.WriteString(comma)
