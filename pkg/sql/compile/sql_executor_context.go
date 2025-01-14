@@ -121,7 +121,8 @@ func (c *compilerContext) Stats(obj *plan.ObjectRef, snapshot *plan.Snapshot) (*
 	stats := statistic.StatsInfoFromContext(c.GetContext())
 	start := time.Now()
 	defer func() {
-		stats.AddBuildPlanStatsConsumption(time.Since(start))
+		end := time.Now()
+		stats.AddBuildPlanStatsConsumption(start, end)
 	}()
 
 	dbName := obj.GetSchemaName()

@@ -845,8 +845,9 @@ func (tcc *TxnCompilerContext) Stats(obj *plan2.ObjectRef, snapshot *plan2.Snaps
 	statser := statistic.StatsInfoFromContext(tcc.execCtx.reqCtx)
 	start := time.Now()
 	defer func() {
-		v2.TxnStatementStatsDurationHistogram.Observe(time.Since(start).Seconds())
-		statser.AddBuildPlanStatsConsumption(time.Since(start))
+		end := time.Now()
+		v2.TxnStatementStatsDurationHistogram.Observe(end.Sub(start).Seconds())
+		statser.AddBuildPlanStatsConsumption(start, end)
 	}()
 
 	dbName := obj.GetSchemaName()

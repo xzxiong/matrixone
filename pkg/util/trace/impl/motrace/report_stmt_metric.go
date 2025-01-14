@@ -20,12 +20,14 @@ import (
 	"unsafe"
 
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 )
 
 type StatementMetric struct {
 	Account              string    `json:"account"`
 	StatementFingerprint string    `json:"statement_fingerprint"`
 	StatementTemplateId  string    `json:"statement_template_id"`
+	MetricName           string    `json:"metric_name"`
 	Timestamp            time.Time `json:"timestamp"`
 	Value                float64   `json:"value"`
 
@@ -75,6 +77,7 @@ func (s *StatementMetric) FillRow(ctx context.Context, row *table.Row) {
 	row.SetColumnVal(nodeTypeCol, table.StringField(GetNodeResource().NodeType))
 	row.SetColumnVal(timestampCol, table.TimeField(s.Timestamp))
 	row.SetColumnVal(valueCol, table.Float64Field(s.Value))
+	row.SetColumnVal(metricNameCol, table.StringField(s.MetricName))
 }
 
 type StatementMetricAggregator struct{}
@@ -101,4 +104,50 @@ func (a StatementMetricAggregator) FilterFunc(i table.Item) bool {
 	}
 
 	return true
+}
+func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, start, end time.Time) {
+	if !GetTracerProvider().IsEnable() {
+		return
+	}
+
+	// TODO: async op
+	// generate multi StatementMetric records.
+	window := GetTracerProvider().aggregationWindow
+	lastWindowBegin := end.Truncate(window)
+	lastWindowEnd := lastWindowBegin.Add(window)
+
+	ctx := context.Background()
+	current := start
+	for current.Before(lastWindowBegin) {
+		currentEnd := current.Truncate(window).Add(window)
+		GetGlobalBatchProcessor().Collect(ctx, &StatementMetric{
+			Account:              stats.Metadata.Account,
+			StatementFingerprint: stats.Metadata.StatementFingerprint,
+			StatementTemplateId:  stats.Metadata.StatementTemplateId,
+			MetricName:           typ.String(),
+			Timestamp:            currentEnd,
+			Value:                float64(currentEnd.Sub(current).Nanoseconds()),
+			aggrCount:            1,
+		})
+		current = currentEnd
+	}
+	GetGlobalBatchProcessor().Collect(ctx, &StatementMetric{
+		Account:              stats.Metadata.Account,
+		StatementFingerprint: stats.Metadata.StatementFingerprint,
+		StatementTemplateId:  stats.Metadata.StatementTemplateId,
+		MetricName:           typ.String(),
+		Timestamp:            lastWindowEnd,
+		Value:                float64(end.Sub(current).Nanoseconds()),
+		aggrCount:            1,
+	})
+
+}
+
+var ReportStatementMem = func(ctx context.Context, stats *statistic.StatsInfo, typ statistic.StatsType, start, end time.Time, value int64 /*byte*/) {
+	if !GetTracerProvider().IsEnable() {
+	}
+
+	// generate multi StatementMetric records.
+
+	GetGlobalBatchProcessor().Collect(ctx, nil)
 }

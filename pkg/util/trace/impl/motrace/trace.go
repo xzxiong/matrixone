@@ -39,6 +39,7 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	ie "github.com/matrixorigin/matrixone/pkg/util/internalExecutor"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 )
 
 var gTracerProvider atomic.Value
@@ -129,6 +130,7 @@ func Init(ctx context.Context, opts ...TracerProviderOption) (err error, act boo
 	logutil.SetLogReporter(&logutil.TraceReporter{ReportZap: ReportZap, ContextField: trace.ContextField})
 	logutil.SpanFieldKey.Store(trace.SpanFieldKey)
 	errutil.SetErrorReporter(ReportError)
+	statistic.SetCpuReporter(ReportStatementCpu)
 
 	// init db_hodler
 	db_holder.SetLabelSelector(config.labels)

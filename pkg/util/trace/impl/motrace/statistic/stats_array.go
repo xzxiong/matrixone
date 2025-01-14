@@ -283,6 +283,12 @@ var DefaultStatsArrayJsonString = initStatsArray.ToJsonString()
 type statsInfoKey struct{}
 
 type StatsInfo struct {
+	Metadata struct {
+		Account              string
+		StatementFingerprint string
+		StatementTemplateId  string
+	} `json:"-"`
+
 	ParseStage struct {
 		ParseDuration  time.Duration `json:"ParseDuration"`
 		ParseStartTime time.Time     `json:"ParseStartTime"`
@@ -414,6 +420,7 @@ func (stats *StatsInfo) ExecutionEnd() {
 	}
 	stats.ExecuteStage.ExecutionEndTime = time.Now()
 	stats.ExecuteStage.ExecutionDuration = stats.ExecuteStage.ExecutionEndTime.Sub(stats.ExecuteStage.ExecutionStartTime)
+	reportStatementCpu(stats, CpuType, stats.ExecuteStage.ExecutionStartTime, stats.ExecuteStage.ExecutionEndTime)
 }
 
 func (stats *StatsInfo) AddOutputTimeConsumption(d time.Duration) {
@@ -509,11 +516,12 @@ func (stats *StatsInfo) IOMergerTimeConsumption() int64 {
 		stats.S3FSReadIOMergerTimeConsumption
 }
 
-func (stats *StatsInfo) AddBuildPlanStatsConsumption(d time.Duration) {
+func (stats *StatsInfo) AddBuildPlanStatsConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsDuration, int64(d))
+	reportStatementCpu(stats, CpuType, start, end)
+	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsDuration, end.Sub(start).Nanoseconds())
 }
 
 func (stats *StatsInfo) AddBuildPlanStatsIOConsumption(d time.Duration) {
@@ -683,4 +691,23 @@ func EnsureStatsInfoCanBeFound(ctx context.Context, from context.Context) contex
 	}
 	ctx = context.WithValue(ctx, statsInfoKey{}, v)
 	return ctx
+}
+
+type StatsType string
+
+func (s StatsType) String() string { return string(s) }
+
+const (
+	CpuType        StatsType = "cpu"
+	MemoryTimeType           = "memory_time"
+	IOTime                   = "iotime"
+	S3IOIn                   = "s3ioin"
+	S3IOOut                  = "s3ioout"
+)
+
+func SetCpuReporter(f func(stats *StatsInfo, typ StatsType, start, end time.Time)) {
+	reportStatementCpu = f
+}
+
+var reportStatementCpu func(stats *StatsInfo, typ StatsType, start, end time.Time) = func(stats *StatsInfo, typ StatsType, start, end time.Time) {
 }
