@@ -24,3 +24,4 @@ traffic_price_2 = 4.99e-13
 #enableMetricToProm = true
 enable-metric-to-prom = true
 enable-stmt-merge = true
+disable-stmt-aggregation = true

@@ -122,18 +122,16 @@ func (t batchETLHandler) NewAggregator(ctx context.Context, name string) table.A
 		}
 	case SingleStatementMetricTable.GetName():
 		// TODO: aggr add new for truncate.
-		if !GetTracerProvider().disableStmtAggregation {
-			a := StatementMetricAggregator{}
-			return NewAggregator(
-				ctx,
-				// TODO: individual window
-				GetTracerProvider().aggregationWindow,
-				15*time.Second,
-				a.NewFunc,
-				a.UpdateFunc,
-				a.FilterFunc,
-			)
-		}
+		a := StatementMetricAggregator{}
+		return NewAggregator(
+			ctx,
+			// TODO: individual window
+			GetTracerProvider().aggregationWindow,
+			15*time.Second,
+			a.NewFunc,
+			a.UpdateFunc,
+			a.FilterFunc,
+		)
 	case MOErrorType:
 	case MOSpanType:
 	case MOLogType:

@@ -77,8 +77,8 @@ type tracerProviderConfig struct {
 	disableSqlWriter bool // set by WithSQLWriterDisable
 
 	// stmt aggregation
-	disableStmtAggregation bool          // set by WithStmtAggregationDisable
-	enableStmtMerge        bool          // set by WithStmtMergeDisable
+	disableStmtAggregation bool          // set by WithAggregatorDisable
+	enableStmtMerge        bool          // set by WithStmtMergeEnable
 	aggregationWindow      time.Duration // WithAggregationWindow
 	selectAggrThreshold    time.Duration // WithSelectThreshold
 
