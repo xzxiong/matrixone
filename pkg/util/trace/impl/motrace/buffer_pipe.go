@@ -114,6 +114,7 @@ func (t batchETLHandler) NewAggregator(ctx context.Context, name string) table.A
 			return NewAggregator(
 				ctx,
 				GetTracerProvider().aggregationWindow,
+				5*time.Second,
 				StatementInfoNew,
 				StatementInfoUpdate,
 				StatementInfoFilter,
@@ -127,6 +128,7 @@ func (t batchETLHandler) NewAggregator(ctx context.Context, name string) table.A
 				ctx,
 				// TODO: individual window
 				GetTracerProvider().aggregationWindow,
+				15*time.Second,
 				a.NewFunc,
 				a.UpdateFunc,
 				a.FilterFunc,
@@ -160,6 +162,7 @@ func genETLData(ctx context.Context, in []IBuffer2SqlItem, buf *bytes.Buffer, fa
 		aggregator = NewAggregator(
 			ctx,
 			GetTracerProvider().aggregationWindow,
+			5*time.Second,
 			StatementInfoNew,
 			StatementInfoUpdate,
 			StatementInfoFilter,

@@ -38,14 +38,28 @@ func (s *StatementMetric) GetName() string {
 	return SingleStatementMetricTable.GetName()
 }
 
+type StatementMetricKey struct {
+	Account              string    `json:"account"`
+	StatementFingerprint string    `json:"statement_fingerprint"`
+	StatementTemplateId  string    `json:"statement_template_id"`
+	MetricName           string    `json:"metric_name"`
+	Timestamp            time.Time `json:"timestamp"`
+}
+
 // Before implements table.WindowKey
-func (s *StatementMetric) Before(end time.Time) bool {
+func (s *StatementMetricKey) Before(end time.Time) bool {
 	return s.Timestamp.Before(end)
 }
 
 // Key implements table.Item
 func (s *StatementMetric) Key(duration time.Duration) table.WindowKey {
-	return s
+	return &StatementMetricKey{
+		Account:              s.Account,
+		StatementFingerprint: s.StatementFingerprint,
+		StatementTemplateId:  s.StatementTemplateId,
+		MetricName:           s.MetricName,
+		Timestamp:            s.Timestamp,
+	}
 }
 
 // Aggred implements table.Item
@@ -131,7 +145,7 @@ func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, sta
 		})
 		current = currentEnd
 	}
-	GetGlobalBatchProcessor().Collect(ctx, &StatementMetric{
+	s := &StatementMetric{
 		Account:              stats.Metadata.Account,
 		StatementFingerprint: stats.Metadata.StatementFingerprint,
 		StatementTemplateId:  stats.Metadata.StatementTemplateId,
@@ -139,7 +153,8 @@ func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, sta
 		Timestamp:            lastWindowEnd,
 		Value:                float64(end.Sub(current).Nanoseconds()),
 		aggrCount:            1,
-	})
+	}
+	GetGlobalBatchProcessor().Collect(ctx, s)
 
 }
 

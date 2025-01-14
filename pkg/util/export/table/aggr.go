@@ -42,5 +42,6 @@ type Aggregator interface {
 	// Those items NEED to be free by caller.
 	PopResultsBeforeWindow(end time.Time) []Item
 	GetWindow() time.Duration
+	GetCheckInterval() time.Duration
 	Close()
 }

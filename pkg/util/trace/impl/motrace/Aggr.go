@@ -31,6 +31,9 @@ type Aggregator struct {
 	NewItemFunc func(i table.Item, ctx context.Context) table.Item
 	UpdateFunc  func(ctx context.Context, existing, new table.Item)
 	FilterFunc  func(i table.Item) bool
+
+	// CheckInterval calculate interval to call PopResultsBeforeWindow
+	CheckInterval time.Duration
 }
 
 type windowKey int
@@ -39,7 +42,9 @@ const (
 	DurationKey windowKey = iota
 )
 
-func NewAggregator(ctx context.Context, windowSize time.Duration, newItemFunc func(i table.Item, ctx context.Context) table.Item, updateFunc func(ctx context.Context, existing, new table.Item), filterFunc func(i table.Item) bool) *Aggregator {
+func NewAggregator(ctx context.Context, windowSize time.Duration,
+	checkInterval time.Duration,
+	newItemFunc func(i table.Item, ctx context.Context) table.Item, updateFunc func(ctx context.Context, existing, new table.Item), filterFunc func(i table.Item) bool) *Aggregator {
 	ctx = context.WithValue(ctx, DurationKey, windowSize)
 	return &Aggregator{
 		ctx:         ctx,
@@ -48,6 +53,8 @@ func NewAggregator(ctx context.Context, windowSize time.Duration, newItemFunc fu
 		NewItemFunc: newItemFunc,
 		UpdateFunc:  updateFunc,
 		FilterFunc:  filterFunc,
+		// mo 2.1
+		CheckInterval: checkInterval,
 	}
 }
 
@@ -97,6 +104,8 @@ func (a *Aggregator) GetResults() []table.Item {
 }
 
 func (a *Aggregator) GetWindow() time.Duration { return a.WindowSize }
+
+func (a *Aggregator) GetCheckInterval() time.Duration { return a.CheckInterval }
 
 // PopResultsBeforeWindow implements table.Aggregator.
 // return grouped items in Aggregator, and remove them from the Aggregator.

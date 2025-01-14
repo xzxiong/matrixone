@@ -57,7 +57,8 @@ func NewContentBuffer(opts ...BufferOption) *ContentBuffer {
 			Reminder:       bp.NewConstantClock(defaultClock),
 			sizeThreshold:  table.DefaultWriterBufferSize,
 			filterItemFunc: noopFilterItemFunc,
-			genBatchFunc:   noopGenBatchSQL,
+			// @deprecated in ContentBuffer
+			genBatchFunc: noopGenBatchSQL,
 		},
 	}
 	for _, opt := range opts {
