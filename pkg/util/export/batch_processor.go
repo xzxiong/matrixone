@@ -230,7 +230,7 @@ mainL:
 		select {
 		case <-time.After(interval):
 			// handle aggr
-			end := time.Now().Truncate(b.aggr.GetWindow())
+			end := time.Now().Add(-interval).Truncate(b.aggr.GetWindow())
 			results := b.aggr.PopResultsBeforeWindow(end)
 			for _, item := range results {
 				// tips: Add() will free the {item} obj.
