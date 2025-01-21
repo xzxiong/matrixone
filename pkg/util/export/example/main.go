@@ -30,17 +30,19 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/matrixorigin/matrixone/pkg/config"
 	"github.com/matrixorigin/matrixone/pkg/pb/metadata"
 	"github.com/matrixorigin/matrixone/pkg/txn/clock"
 	"github.com/matrixorigin/matrixone/pkg/util/metric/mometric"
-	"go.uber.org/zap/zapcore"
 
 	morun "github.com/matrixorigin/matrixone/pkg/common/runtime"
 	"github.com/matrixorigin/matrixone/pkg/defines"
 	"github.com/matrixorigin/matrixone/pkg/fileservice"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
 	"github.com/matrixorigin/matrixone/pkg/util/export"
+	etldb "github.com/matrixorigin/matrixone/pkg/util/export/etl/db"
 	"github.com/matrixorigin/matrixone/pkg/util/export/table"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace"
@@ -58,6 +60,11 @@ func main() {
 		MaxBackups: 0,
 
 		DisableStore: true,
+	})
+
+	etldb.SetSQLWriterDBUser("dump", "111")
+	etldb.SetSQLWriterDBAddressFunc(func(ctx context.Context, b bool) (string, error) {
+		return "127.0.0.1:6001", nil
 	})
 
 	fs, err := fileservice.NewLocalETLFS(defines.ETLFileServiceName, "mo-data/etl")
