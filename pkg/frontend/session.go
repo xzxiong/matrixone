@@ -48,6 +48,7 @@ import (
 	v2 "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 	"github.com/matrixorigin/matrixone/pkg/vm/process"
 )
 
@@ -146,7 +147,8 @@ type Session struct {
 
 	// tStmt is used only to record the StatementInfo
 	// QueryResult please use feSessionImpl.stmtProfile instead.
-	tStmt *motrace.StatementInfo
+	tStmt  *motrace.StatementInfo
+	tStats *statistic.StatsInfo
 
 	ast tree.Statement
 
@@ -464,6 +466,18 @@ func (ses *Session) SetTStmt(stmt *motrace.StatementInfo) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	ses.tStmt = stmt
+}
+
+func (ses *Session) SetStatsInfo(s *statistic.StatsInfo) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.tStats = s
+}
+
+func (ses *Session) GetStatsInfo() *statistic.StatsInfo) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	return ses.tStats
 }
 
 const saveQueryIdCnt = 10

@@ -18,6 +18,9 @@ import (
 	"context"
 	"runtime/debug"
 	"strings"
+	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/common/morpc"
@@ -40,7 +43,6 @@ import (
 	"github.com/matrixorigin/matrixone/pkg/txn/client"
 	"github.com/matrixorigin/matrixone/pkg/util/fault"
 	"github.com/matrixorigin/matrixone/pkg/vm/engine/disttae"
-	"go.uber.org/zap"
 )
 
 func (s *service) initQueryService() error {
@@ -654,4 +656,36 @@ func (s *service) handleWorkspaceThresholdRequest(
 	}
 
 	return nil
+}
+
+type StatsBackgroundService struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	srv    *service
+}
+
+func NewStatsBackgroundService(ctx context.Context, srv *service) *StatsBackgroundService {
+	s := &StatsBackgroundService{
+		srv: srv,
+	}
+	s.ctx, s.cancel = context.WithCancel(ctx)
+	return s
+}
+
+func (s *StatsBackgroundService) Start() {
+	go s.loop()
+}
+
+// loop implements like service.processList
+func (s *StatsBackgroundService) loop() {
+	trigger := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-trigger.C:
+
+			content := s.srv.sessionMgr.GetAllStatsSessions()
+
+		case <-s.ctx.Done():
+		}
+	}
 }

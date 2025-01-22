@@ -827,9 +827,12 @@ func (backSes *backSession) GetOutputCallback(execCtx *ExecCtx) func(*batch.Batc
 	}
 }
 
-func (backSes *backSession) SetTStmt(stmt *motrace.StatementInfo) {
+func (backSes *backSession) SetTStmt(stmt *motrace.StatementInfo) {}
 
-}
+func (backSes *backSession) SetStatsInfo(_ *statistic.StatsInfo) {}
+
+func (backSes *backSession) GetStatsInfo() *statistic.StatsInfo { return nil }
+
 func (backSes *backSession) SendRows() int64 {
 	return 0
 }

@@ -540,6 +540,8 @@ type FeSession interface {
 	GetShareTxnBackgroundExec(ctx context.Context, newRawBatch bool) BackgroundExec
 	GetMySQLParser() *mysql.MySQLParser
 	InitBackExec(txnOp TxnOperator, db string, callBack outputCallBackFunc, opts ...*BackgroundExecOption) BackgroundExec
+	GetStatsInfo() *statistic.StatsInfo
+	SetStatsInfo(*statistic.StatsInfo)
 	SessionLogger
 }
 

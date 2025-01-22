@@ -15,8 +15,10 @@
 package queryservice
 
 import (
-	"github.com/matrixorigin/matrixone/pkg/pb/status"
 	"sync"
+
+	"github.com/matrixorigin/matrixone/pkg/pb/status"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
 )
 
 // Session is an interface which should have the following methods.
@@ -29,6 +31,8 @@ type Session interface {
 	StatusSession() *status.Session
 	// SetSessionRoutineStatus set the session Status
 	SetSessionRoutineStatus(status string) error
+	// GetStatsInfo return current running query's stats
+	GetStatsInfo() *statistic.StatsInfo
 }
 
 // SessionManager manages all sessions locally.
@@ -129,4 +133,20 @@ func (sm *SessionManager) GetStatusSessionsByTenant(tenant string) []*status.Ses
 		sessions = append(sessions, session.StatusSession())
 	}
 	return sessions
+}
+
+// GetAllStatsSessions returns all status sessions in the manager.
+func (sm *SessionManager) GetAllStatsSessions() []*statistic.StatsInfo {
+	if sm == nil {
+		return nil
+	}
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	sss := make([]*statistic.StatsInfo, 0, len(sm.mu.sessionsByID))
+	for _, session := range sm.mu.sessionsByID {
+		if info := session.GetStatsInfo(); info != nil {
+			sss = append(sss, info)
+		}
+	}
+	return sss
 }

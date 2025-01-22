@@ -231,6 +231,8 @@ func NewService(
 	server.RegisterRequestHandler(srv.handleRequest)
 	srv.server = server
 
+	srv.statsService = NewStatsBackgroundService(ctx, srv)
+
 	// TODO: global client need to refactor
 	c, err := cnclient.NewPipelineClient(
 		cfg.UUID,
@@ -255,6 +257,10 @@ func (s *service) Start() error {
 	err := s.runMoServer()
 	if err != nil {
 		return err
+	}
+
+	if s.statsService != nil {
+		go s.statsService.Start()
 	}
 
 	return s.server.Start()

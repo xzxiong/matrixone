@@ -20,7 +20,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lni/goutils/leaktest"
+
 	"github.com/matrixorigin/matrixone/pkg/pb/status"
+	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,6 +50,8 @@ func (s *mockSession) StatusSession() *status.Session {
 func (s *mockSession) SetSessionRoutineStatus(status string) error {
 	return nil
 }
+
+func (s *mockSession) GetStatsInfo() *statistic.StatsInfo { return nil }
 
 func TestNewSessionManager(t *testing.T) {
 	sm := NewSessionManager()

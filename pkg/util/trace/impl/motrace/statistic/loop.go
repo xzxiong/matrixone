@@ -14,7 +14,11 @@
 
 package statistic
 
-import "time"
+import (
+	"context"
+	"sync"
+	"time"
+)
 
 const (
 	ADD    string = "add"
@@ -22,48 +26,67 @@ const (
 )
 
 type Generator struct {
-	c chan *event
+	stopped bool
+	c       chan *event
 
-	content map[string]map[string]*event
+	content map[uint64]*event
 
 	delayInterval time.Duration
 	window        time.Duration
+	ctx           context.Context
+	cancel        context.CancelFunc
+	once          sync.Once
 }
 
 type event struct {
-	typ     string
-	tempId  string
-	queryId string
-	stats   *StatsInfo
-	last    time.Time
+	typ    string
+	connId uint64
+	stats  *StatsInfo
+	last   time.Time
 }
 
 func NewGenerator() *Generator {
 	return &Generator{
-		c: make(chan *event, 100),
+		c:       make(chan *event, 100),
+		stopped: false,
 	}
 }
 
-func (g *Generator) Register(templateId string, queryId string, info *StatsInfo) {
+func (g *Generator) Start(ctx context.Context) {
+	g.once.Do(func() {
+		if g.stopped {
+			return
+		}
+		g.ctx, g.cancel = context.WithCancel(ctx)
+		go g.loop(ctx)
+	})
+}
+
+func (g *Generator) Stop() {
+	if !g.stopped {
+		g.cancel()
+		g.stopped = true
+	}
+}
+
+func (g *Generator) Register(connId uint64, info *StatsInfo) {
 	g.c <- &event{
-		typ:     ADD,
-		tempId:  templateId,
-		queryId: queryId,
-		stats:   info,
-		last:    time.Now(),
+		typ:    ADD,
+		connId: connId,
+		stats:  info,
+		last:   time.Now(),
 	}
 }
 
-func (g *Generator) Remove(templateId, queryId string) {
+func (g *Generator) Remove(connId uint64) {
 	g.c <- &event{
-		typ:     REMOVE,
-		tempId:  templateId,
-		queryId: queryId,
+		typ:    REMOVE,
+		connId: connId,
 	}
 
 }
 
-func (g *Generator) Loop() {
+func (g *Generator) loop(ctx context.Context) {
 
 	// 1. each window generate this window record
 	// 2. need delay_interval, for  the end check
@@ -76,33 +99,31 @@ func (g *Generator) Loop() {
 		case e := <-g.c:
 			switch e.typ {
 			case ADD:
-				_, exist := g.content[e.tempId]
-				if !exist {
-					g.content[e.tempId] = make(map[string]*event, 12)
-				}
-				g.content[e.tempId][e.queryId] = e
-				e.queryId = ""
-				e.tempId = ""
+				g.content[e.connId] = e
 			case REMOVE:
-				_, exist := g.content[e.tempId]
-				if exist {
-					delete(g.content[e.tempId], e.queryId)
-				}
+				delete(g.content, e.connId)
 			}
 
 		case <-ticker.C:
 			// record last window.
 			windowEnd := time.Now().Add(-g.delayInterval).Truncate(g.window)
-			for _, cc := range g.content {
-				for _, e := range cc {
-					if e.last.Before(windowEnd) {
-						reportStatementCpu(e.stats, CpuType, e.last, windowEnd)
-						e.last = windowEnd
-					}
+			for _, e := range g.content {
+				if e.last.Before(windowEnd) {
+					reportStatementCpu(e.stats, CpuType, e.last, windowEnd)
+					e.last = windowEnd
 				}
 			}
-
 		}
 	}
 
+}
+
+var generator Generator
+
+func Register(connId uint32, info *StatsInfo) {
+	generator.Register(uint64(connId), info)
+}
+
+func Remove(connId uint32) {
+	generator.Remove(uint64(connId))
 }
