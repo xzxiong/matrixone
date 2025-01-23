@@ -48,6 +48,7 @@ var NilSesID [16]byte
 // StatementInfo implement export.IBuffer2SqlItem and export.CsvFields
 
 var _ IBuffer2SqlItem = (*StatementInfo)(nil)
+var _ statistic.StatsMetadata = (*StatementInfo)(nil)
 
 const Decimal128Width = 38
 const Decimal128Scale = 0
@@ -286,6 +287,13 @@ func getErrorString(err error) string {
 	}
 	return err.Error()
 }
+
+// GetAccount implements statistic.StatsMetadata
+func (s *StatementInfo) GetAccount() string              { return s.Account }
+func (s *StatementInfo) GetStatementFingerprint() string { return s.StatementFingerprint }
+func (s *StatementInfo) GetStatementTemplateId() string  { return s.StatementTemplateId }
+func (s *StatementInfo) Lock()                           { s.mux.Lock() }
+func (s *StatementInfo) Unlock()                         { s.mux.Unlock() }
 
 // Key implements table.Item
 func (s *StatementInfo) Key(duration time.Duration) table.WindowKey {

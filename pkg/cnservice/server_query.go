@@ -683,7 +683,10 @@ func (s *StatsBackgroundService) loop() {
 		select {
 		case <-trigger.C:
 
-			content := s.srv.sessionMgr.GetAllStatsSessions()
+			statss := s.srv.sessionMgr.GetAllStatsSessions()
+			for _, s := range statss {
+				s.Report()
+			}
 
 		case <-s.ctx.Done():
 		}

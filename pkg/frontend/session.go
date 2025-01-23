@@ -246,6 +246,8 @@ type Session struct {
 	// disableAgg co-operate with RecordStatement
 	// more can see Benchmark_RecordStatement_IsTrue()
 	disableAgg bool
+	// disableStat co-operate with GetStatsInfo and ?
+	disableStat bool
 
 	// mysql parser
 	mysqlParser mysql.MySQLParser
@@ -474,9 +476,12 @@ func (ses *Session) SetStatsInfo(s *statistic.StatsInfo) {
 	ses.tStats = s
 }
 
-func (ses *Session) GetStatsInfo() *statistic.StatsInfo) {
+func (ses *Session) GetStatsInfo() *statistic.StatsInfo {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
+	if ses.disableAgg {
+		return nil
+	}
 	return ses.tStats
 }
 

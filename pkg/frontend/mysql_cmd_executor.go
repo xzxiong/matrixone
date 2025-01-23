@@ -3118,9 +3118,7 @@ func doComQuery(ses *Session, execCtx *ExecCtx, input *UserInput) (retErr error)
 		statsInfo.Reset()
 		statistic.Register(ses.GetConnectionID(), statsInfo)
 		if tStmt := ses.GetStmtInfo(); tStmt != nil {
-			statsInfo.Metadata.Account = tStmt.Account
-			statsInfo.Metadata.StatementFingerprint = tStmt.StatementFingerprint
-			statsInfo.Metadata.StatementTemplateId = tStmt.StatementTemplateId
+			statsInfo.Metadata = tStmt
 		}
 		//average parse duration
 		statsInfo.ParseStage.ParseStartTime = beginInstant

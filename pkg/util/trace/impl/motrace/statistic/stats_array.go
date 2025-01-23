@@ -282,12 +282,16 @@ var DefaultStatsArrayJsonString = initStatsArray.ToJsonString()
 
 type statsInfoKey struct{}
 
+type StatsMetadata interface {
+	GetAccount() string
+	GetStatementFingerprint() string
+	GetStatementTemplateId() string
+	Lock()
+	Unlock()
+}
+
 type StatsInfo struct {
-	Metadata struct {
-		Account              string
-		StatementFingerprint string
-		StatementTemplateId  string
-	} `json:"-"`
+	Metadata StatsMetadata `json:"-"`
 
 	ParseStage struct {
 		ParseDuration  time.Duration `json:"ParseDuration"`
@@ -656,12 +660,24 @@ func (stats *StatsInfo) SetWaitActiveCost(cost time.Duration) {
 	stats.WaitActiveCost = cost
 }
 
-// reset StatsInfo into zero state
+// Reset StatsInfo into zero state
 func (stats *StatsInfo) Reset() {
 	if stats == nil {
 		return
 	}
+	if stats.Metadata != nil {
+		stats.Metadata.Lock()
+		defer stats.Metadata.Unlock()
+	}
 	*stats = StatsInfo{}
+}
+
+func (stats *StatsInfo) Report() {
+	if stats.Metadata != nil {
+		stats.Metadata.Lock()
+		defer stats.Metadata.Unlock()
+	}
+
 }
 
 func ContextWithStatsInfo(requestCtx context.Context, stats *StatsInfo) context.Context {
