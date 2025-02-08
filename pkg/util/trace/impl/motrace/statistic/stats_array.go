@@ -735,8 +735,6 @@ const (
 	CpuType        StatsType = "cpu"
 	MemoryTimeType           = "memory_time"
 	IOTime                   = "iotime"
-	S3IOIn                   = "s3ioin"
-	S3IOOut                  = "s3ioout"
 	S3List                   = "s3list"
 	S3Head                   = "s3head"
 	S3Put                    = "s3put"
