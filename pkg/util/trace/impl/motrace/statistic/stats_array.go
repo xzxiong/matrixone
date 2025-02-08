@@ -396,7 +396,9 @@ func (stats *StatsInfo) CompileEnd() {
 	if stats == nil {
 		return
 	}
-	stats.CompileStage.CompileDuration = time.Since(stats.CompileStage.CompileStartTime)
+	end := time.Now()
+	stats.CompileStage.CompileDuration = end.Sub(stats.CompileStage.CompileStartTime)
+	reportCpuTime(stats, stats.CompileStage.CompileStartTime, end)
 }
 
 func (stats *StatsInfo) PlanStart() {
@@ -410,7 +412,9 @@ func (stats *StatsInfo) PlanEnd() {
 	if stats == nil {
 		return
 	}
-	stats.PlanStage.PlanDuration = time.Since(stats.PlanStage.PlanStartTime)
+	end := time.Now()
+	stats.PlanStage.PlanDuration = end.Sub(stats.PlanStage.PlanStartTime)
+	reportCpuTime(stats, stats.PlanStage.PlanStartTime, end)
 }
 
 func (stats *StatsInfo) ExecutionStart() {
@@ -426,16 +430,15 @@ func (stats *StatsInfo) ExecutionEnd() {
 	}
 	stats.ExecuteStage.ExecutionEndTime = time.Now()
 	stats.ExecuteStage.ExecutionDuration = stats.ExecuteStage.ExecutionEndTime.Sub(stats.ExecuteStage.ExecutionStartTime)
-	if stats.EnableCollect {
-		reportStatementCpu(stats, CpuType, stats.ExecuteStage.ExecutionStartTime, stats.ExecuteStage.ExecutionEndTime)
-	}
+	reportCpuTime(stats, stats.ExecuteStage.ExecutionStartTime, stats.ExecuteStage.ExecutionEndTime)
 }
 
-func (stats *StatsInfo) AddOutputTimeConsumption(d time.Duration) {
+func (stats *StatsInfo) AddOutputTimeConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.ExecuteStage.OutputDuration, int64(d))
+	atomic.AddInt64(&stats.ExecuteStage.OutputDuration, end.Sub(start).Nanoseconds())
+	reportCpuTime(stats, start, end)
 }
 
 func (stats *StatsInfo) AddBuidReaderTimeConsumption(d time.Duration) {
@@ -445,11 +448,12 @@ func (stats *StatsInfo) AddBuidReaderTimeConsumption(d time.Duration) {
 	atomic.AddInt64(&stats.PrepareRunStage.BuildReaderDuration, int64(d))
 }
 
-func (stats *StatsInfo) AddIOAccessTimeConsumption(d time.Duration) {
+func (stats *StatsInfo) AddIOAccessTimeConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.IOAccessTimeConsumption, int64(d))
+	atomic.AddInt64(&stats.IOAccessTimeConsumption, end.Sub(start).Nanoseconds())
+	reportIOTime(stats, start, end)
 }
 
 func (stats *StatsInfo) AddLocalFSReadIOMergerTimeConsumption(d time.Duration) {
@@ -528,38 +532,40 @@ func (stats *StatsInfo) AddBuildPlanStatsConsumption(start time.Time, end time.T
 	if stats == nil {
 		return
 	}
-	if stats.EnableCollect {
-		reportStatementCpu(stats, CpuType, start, end)
-	}
 	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsDuration, end.Sub(start).Nanoseconds())
+	reportCpuTime(stats, start, end)
 }
 
-func (stats *StatsInfo) AddBuildPlanStatsIOConsumption(d time.Duration) {
+func (stats *StatsInfo) AddBuildPlanStatsIOConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsIOConsumption, int64(d))
+	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsIOConsumption, end.Sub(start).Nanoseconds())
+	reportIOTime(stats, start, end)
 }
 
-func (stats *StatsInfo) AddStatsStatsInCacheDuration(d time.Duration) {
+func (stats *StatsInfo) AddStatsStatsInCacheDuration(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsInCacheDuration, int64(d))
+	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsInCacheDuration, end.Sub(start).Nanoseconds())
+	reportCpuTime(stats, start, end)
 }
 
-func (stats *StatsInfo) AddBuildPlanResolveVarConsumption(d time.Duration) {
+func (stats *StatsInfo) AddBuildPlanResolveVarConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.PlanStage.BuildPlanResolveVarDuration, int64(d))
+	atomic.AddInt64(&stats.PlanStage.BuildPlanResolveVarDuration, end.Sub(start).Nanoseconds())
+	reportCpuTime(stats, start, end)
 }
 
-func (stats *StatsInfo) AddCompileTableScanConsumption(d time.Duration) {
+func (stats *StatsInfo) AddCompileTableScanConsumption(start time.Time, end time.Time) {
 	if stats == nil {
 		return
 	}
-	atomic.AddInt64(&stats.CompileStage.CompileTableScanDuration, int64(d))
+	atomic.AddInt64(&stats.CompileStage.CompileTableScanDuration, end.Sub(start).Nanoseconds())
+	reportTableScanTime(stats, start, end)
 }
 
 func (stats *StatsInfo) AddBuildPlanS3Request(sreq S3Request) {
@@ -572,6 +578,7 @@ func (stats *StatsInfo) AddBuildPlanS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.PlanStage.BuildPlanS3Request.Get, sreq.Get)
 	atomic.AddInt64(&stats.PlanStage.BuildPlanS3Request.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.PlanStage.BuildPlanS3Request.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 func (stats *StatsInfo) AddBuildPlanStatsS3Request(sreq S3Request) {
@@ -584,6 +591,7 @@ func (stats *StatsInfo) AddBuildPlanStatsS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsS3.Get, sreq.Get)
 	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsS3.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsS3.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 func (stats *StatsInfo) AddCompileS3Request(sreq S3Request) {
@@ -596,6 +604,7 @@ func (stats *StatsInfo) AddCompileS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.CompileStage.CompileS3Request.Get, sreq.Get)
 	atomic.AddInt64(&stats.CompileStage.CompileS3Request.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.CompileStage.CompileS3Request.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 // CompileExpandRangesS3Request
@@ -609,6 +618,7 @@ func (stats *StatsInfo) CompileExpandRangesS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.CompileStage.CompileExpandRangesS3.Get, sreq.Get)
 	atomic.AddInt64(&stats.CompileStage.CompileExpandRangesS3.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.CompileStage.CompileExpandRangesS3.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 func (stats *StatsInfo) AddScopePrepareS3Request(sreq S3Request) {
@@ -621,6 +631,7 @@ func (stats *StatsInfo) AddScopePrepareS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.PrepareRunStage.ScopePrepareS3Request.Get, sreq.Get)
 	atomic.AddInt64(&stats.PrepareRunStage.ScopePrepareS3Request.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.PrepareRunStage.ScopePrepareS3Request.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 func (stats *StatsInfo) AddTxnIncrStatementS3Request(sreq S3Request) {
@@ -633,6 +644,7 @@ func (stats *StatsInfo) AddTxnIncrStatementS3Request(sreq S3Request) {
 	atomic.AddInt64(&stats.OtherStage.TxnIncrStatementS3.Get, sreq.Get)
 	atomic.AddInt64(&stats.OtherStage.TxnIncrStatementS3.Delete, sreq.Delete)
 	atomic.AddInt64(&stats.OtherStage.TxnIncrStatementS3.DeleteMul, sreq.DeleteMul)
+	reportIOCount(stats, &sreq)
 }
 
 func (stats *StatsInfo) AddScopePrepareDuration(d int64) {
@@ -725,11 +737,53 @@ const (
 	IOTime                   = "iotime"
 	S3IOIn                   = "s3ioin"
 	S3IOOut                  = "s3ioout"
+	S3List                   = "s3list"
+	S3Head                   = "s3head"
+	S3Put                    = "s3put"
+	S3Get                    = "s3get"
+	S3Delete                 = "s3delete"
+	S3DeleteMul              = "s3deleteMul"
+	TableScanType            = "table_scan"
 )
 
-func SetCpuReporter(f func(stats *StatsInfo, typ StatsType, start, end time.Time)) {
-	reportStatementCpu = f
+type ReportTimeRange func(stats *StatsInfo, info StatsType, start, end time.Time)
+type ReportResource func(stats *StatsInfo, info StatsType, ts time.Time, value int64)
+
+func SetCpuReporter(f ReportTimeRange, fr ReportResource) {
+	reportStatementTimeConsume = f
+	reportStatementResource = fr
 }
 
-var reportStatementCpu func(stats *StatsInfo, typ StatsType, start, end time.Time) = func(stats *StatsInfo, typ StatsType, start, end time.Time) {
+var reportStatementTimeConsume ReportTimeRange = func(stats *StatsInfo, typ StatsType, start, end time.Time) {}
+
+var reportStatementResource ReportResource = func(stats *StatsInfo, typ StatsType, ts time.Time, value int64) {}
+
+func reportIOCount(stats *StatsInfo, sreq *S3Request) {
+	if stats.EnableCollect {
+		end := time.Now()
+		reportStatementResource(stats, S3List, end, sreq.List)
+		reportStatementResource(stats, S3Head, end, sreq.Head)
+		reportStatementResource(stats, S3Put, end, sreq.Put)
+		reportStatementResource(stats, S3Get, end, sreq.Get)
+		reportStatementResource(stats, S3Delete, end, sreq.Delete)
+		reportStatementResource(stats, S3DeleteMul, end, sreq.DeleteMul)
+	}
+}
+
+func reportIOTime(stats *StatsInfo, start, end time.Time) {
+	if stats.EnableCollect {
+		reportStatementTimeConsume(stats, IOTime, start, end)
+	}
+}
+
+func reportCpuTime(stats *StatsInfo, start, end time.Time) {
+	if stats.EnableCollect {
+		reportStatementTimeConsume(stats, CpuType, start, end)
+	}
+}
+
+func reportTableScanTime(stats *StatsInfo, start, end time.Time) {
+	if stats.EnableCollect {
+		reportStatementTimeConsume(stats, TableScanType, start, end)
+	}
 }

@@ -315,7 +315,8 @@ func (gs *GlobalStats) Get(ctx context.Context, key pb.StatsInfoKey, sync bool) 
 		stats := statistic.StatsInfoFromContext(ctx)
 		start := time.Now()
 		defer func() {
-			stats.AddBuildPlanStatsIOConsumption(time.Since(start))
+			end := time.Now()
+			stats.AddBuildPlanStatsIOConsumption(start, end)
 		}()
 	}
 

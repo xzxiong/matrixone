@@ -517,7 +517,8 @@ func getDataFromPipeline(obj FeSession, execCtx *ExecCtx, bat *batch.Batch, crs 
 	if err != nil {
 		return err
 	}
-	tTime := time.Since(begin)
+	end := time.Now()
+	tTime := end.Sub(begin).Nanoseconds()
 	n := 0
 	if bat != nil && bat.Vecs[0] != nil {
 		n = bat.Vecs[0].Length()
@@ -530,7 +531,7 @@ func getDataFromPipeline(obj FeSession, execCtx *ExecCtx, bat *batch.Batch, crs 
 		tTime)
 
 	stats := statistic.StatsInfoFromContext(execCtx.reqCtx)
-	stats.AddOutputTimeConsumption(tTime)
+	stats.AddOutputTimeConsumption(begin, end)
 	return nil
 }
 

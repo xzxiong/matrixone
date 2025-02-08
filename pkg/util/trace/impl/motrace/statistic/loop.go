@@ -109,7 +109,7 @@ func (g *Generator) loop(ctx context.Context) {
 			windowEnd := time.Now().Add(-g.delayInterval).Truncate(g.window)
 			for _, e := range g.content {
 				if e.last.Before(windowEnd) {
-					reportStatementCpu(e.stats, CpuType, e.last, windowEnd)
+					reportStatementTimeConsume(e.stats, CpuType, e.last, windowEnd)
 					e.last = windowEnd
 				}
 			}

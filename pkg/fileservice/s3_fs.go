@@ -27,6 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/matrixorigin/matrixone/pkg/common/malloc"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/fileservice/fscache"
@@ -35,7 +37,6 @@ import (
 	metric "github.com/matrixorigin/matrixone/pkg/util/metric/v2"
 	"github.com/matrixorigin/matrixone/pkg/util/trace"
 	"github.com/matrixorigin/matrixone/pkg/util/trace/impl/motrace/statistic"
-	"go.uber.org/zap"
 )
 
 // S3FS is a FileService implementation backed by S3
@@ -467,7 +468,8 @@ func (s *S3FS) Read(ctx context.Context, vector *IOVector) (err error) {
 	stats := statistic.StatsInfoFromContext(ctx)
 	ioStart := time.Now()
 	defer func() {
-		stats.AddIOAccessTimeConsumption(time.Since(ioStart))
+		end := time.Now()
+		stats.AddIOAccessTimeConsumption(ioStart, end)
 	}()
 
 	if err := ctx.Err(); err != nil {

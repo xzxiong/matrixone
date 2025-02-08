@@ -713,7 +713,8 @@ func (tcc *TxnCompilerContext) ResolveVariable(varName string, isSystemVar, isGl
 	stats := statistic.StatsInfoFromContext(tcc.execCtx.reqCtx)
 	start := time.Now()
 	defer func() {
-		stats.AddBuildPlanResolveVarConsumption(time.Since(start))
+		end := time.Now()
+		stats.AddBuildPlanResolveVarConsumption(start, end)
 	}()
 
 	ctx := tcc.execCtx.reqCtx
@@ -904,7 +905,8 @@ func (tcc *TxnCompilerContext) statsInCache(ctx context.Context, dbName string, 
 	statser := statistic.StatsInfoFromContext(tcc.execCtx.reqCtx)
 	start := time.Now()
 	defer func() {
-		statser.AddStatsStatsInCacheDuration(time.Since(start))
+		end := time.Now()
+		statser.AddStatsStatsInCacheDuration(start, end)
 	}()
 
 	s := tcc.GetStatsCache().GetStatsInfo(table.GetTableID(ctx), true)

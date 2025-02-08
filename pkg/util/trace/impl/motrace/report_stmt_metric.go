@@ -124,7 +124,7 @@ func (a StatementMetricAggregator) FilterFunc(i table.Item) bool {
 
 	return true
 }
-func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, start, end time.Time) {
+func ReportStatementTimeRange(stats *statistic.StatsInfo, typ statistic.StatsType, start, end time.Time) {
 	if !GetTracerProvider().IsEnable() {
 		return
 	}
@@ -140,9 +140,9 @@ func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, sta
 	for current.Before(lastWindowBegin) {
 		currentEnd := current.Truncate(window).Add(window)
 		GetGlobalBatchProcessor().Collect(ctx, &StatementMetric{
-			Account:              stats.Metadata.Account,
-			StatementFingerprint: stats.Metadata.StatementFingerprint,
-			StatementTemplateId:  stats.Metadata.StatementTemplateId,
+			Account:              stats.Metadata.GetAccount(),
+			StatementFingerprint: stats.Metadata.GetStatementFingerprint(),
+			StatementTemplateId:  stats.Metadata.GetStatementTemplateId(),
 			MetricName:           typ.String(),
 			Timestamp:            currentEnd,
 			Value:                float64(currentEnd.Sub(current).Nanoseconds()),
@@ -151,16 +151,38 @@ func ReportStatementCpu(stats *statistic.StatsInfo, typ statistic.StatsType, sta
 		current = currentEnd
 	}
 	s := &StatementMetric{
-		Account:              stats.Metadata.Account,
-		StatementFingerprint: stats.Metadata.StatementFingerprint,
-		StatementTemplateId:  stats.Metadata.StatementTemplateId,
+		Account:              stats.Metadata.GetAccount(),
+		StatementFingerprint: stats.Metadata.GetStatementFingerprint(),
+		StatementTemplateId:  stats.Metadata.GetStatementTemplateId(),
 		MetricName:           typ.String(),
 		Timestamp:            lastWindowEnd,
 		Value:                float64(end.Sub(current).Nanoseconds()),
 		aggrCount:            1,
 	}
 	GetGlobalBatchProcessor().Collect(ctx, s)
+}
 
+func ReportStatementValue(stats *statistic.StatsInfo, typ statistic.StatsType, end time.Time, value int64) {
+	if !GetTracerProvider().IsEnable() {
+		return
+	}
+
+	// TODO: async op
+	// generate multi StatementMetric records.
+	window := GetTracerProvider().aggregationWindow
+	windowEnd := end.Truncate(window).Add(window)
+
+	ctx := context.Background()
+	s := &StatementMetric{
+		Account:              stats.Metadata.GetAccount(),
+		StatementFingerprint: stats.Metadata.GetStatementFingerprint(),
+		StatementTemplateId:  stats.Metadata.GetStatementTemplateId(),
+		MetricName:           typ.String(),
+		Timestamp:            windowEnd,
+		Value:                float64(value),
+		aggrCount:            1,
+	}
+	GetGlobalBatchProcessor().Collect(ctx, s)
 }
 
 var ReportStatementMem = func(ctx context.Context, stats *statistic.StatsInfo, typ statistic.StatsType, start, end time.Time, value int64 /*byte*/) {

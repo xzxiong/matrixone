@@ -130,7 +130,7 @@ func Init(ctx context.Context, opts ...TracerProviderOption) (err error, act boo
 	logutil.SetLogReporter(&logutil.TraceReporter{ReportZap: ReportZap, ContextField: trace.ContextField})
 	logutil.SpanFieldKey.Store(trace.SpanFieldKey)
 	errutil.SetErrorReporter(ReportError)
-	statistic.SetCpuReporter(ReportStatementCpu)
+	statistic.SetCpuReporter(ReportStatementTimeRange, ReportStatementValue)
 
 	// init db_hodler
 	db_holder.SetLabelSelector(config.labels)

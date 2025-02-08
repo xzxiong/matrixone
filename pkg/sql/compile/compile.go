@@ -1786,7 +1786,8 @@ func (c *Compile) compileTableScan(n *plan.Node) ([]*Scope, error) {
 	stats := statistic.StatsInfoFromContext(c.proc.GetTopContext())
 	compileStart := time.Now()
 	defer func() {
-		stats.AddCompileTableScanConsumption(time.Since(compileStart))
+		end := time.Now()
+		stats.AddCompileTableScanConsumption(compileStart, end)
 	}()
 
 	nodes, err := c.generateNodes(n)

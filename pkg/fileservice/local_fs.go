@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/matrixorigin/matrixone/pkg/common/malloc"
 	"io"
 	"io/fs"
 	"iter"
@@ -33,6 +32,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/matrixorigin/matrixone/pkg/common/malloc"
 	"github.com/matrixorigin/matrixone/pkg/common/moerr"
 	"github.com/matrixorigin/matrixone/pkg/fileservice/fscache"
 	"github.com/matrixorigin/matrixone/pkg/logutil"
@@ -315,7 +315,8 @@ func (l *LocalFS) Read(ctx context.Context, vector *IOVector) (err error) {
 	stats := statistic.StatsInfoFromContext(ctx)
 	ioStart := time.Now()
 	defer func() {
-		stats.AddIOAccessTimeConsumption(time.Since(ioStart))
+		end := time.Now()
+		stats.AddIOAccessTimeConsumption(ioStart, end)
 	}()
 
 	if err := ctx.Err(); err != nil {
