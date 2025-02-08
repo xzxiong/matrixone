@@ -291,6 +291,8 @@ type StatsMetadata interface {
 }
 
 type StatsInfo struct {
+	EnableCollect bool `json:"-"`
+
 	Metadata StatsMetadata `json:"-"`
 
 	ParseStage struct {
@@ -424,7 +426,9 @@ func (stats *StatsInfo) ExecutionEnd() {
 	}
 	stats.ExecuteStage.ExecutionEndTime = time.Now()
 	stats.ExecuteStage.ExecutionDuration = stats.ExecuteStage.ExecutionEndTime.Sub(stats.ExecuteStage.ExecutionStartTime)
-	reportStatementCpu(stats, CpuType, stats.ExecuteStage.ExecutionStartTime, stats.ExecuteStage.ExecutionEndTime)
+	if stats.EnableCollect {
+		reportStatementCpu(stats, CpuType, stats.ExecuteStage.ExecutionStartTime, stats.ExecuteStage.ExecutionEndTime)
+	}
 }
 
 func (stats *StatsInfo) AddOutputTimeConsumption(d time.Duration) {
@@ -524,7 +528,9 @@ func (stats *StatsInfo) AddBuildPlanStatsConsumption(start time.Time, end time.T
 	if stats == nil {
 		return
 	}
-	reportStatementCpu(stats, CpuType, start, end)
+	if stats.EnableCollect {
+		reportStatementCpu(stats, CpuType, start, end)
+	}
 	atomic.AddInt64(&stats.PlanStage.BuildPlanStatsDuration, end.Sub(start).Nanoseconds())
 }
 
