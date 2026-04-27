@@ -6,12 +6,18 @@
 
 ## 特性
 
+### 核心功能
 - ✅ 自动创建只读角色和用户
 - ✅ 授予指定数据库所有表的 SELECT 权限
 - ✅ 授予必要的 mo_catalog 表权限（mo_tables, mo_columns）
 - ✅ 自动验证配置和连接测试
 - ✅ 详细的执行日志和错误处理
 - ✅ 支持角色复用（如果角色已存在则跳过创建）
+
+### 🆕 v2.0 新功能
+- ✅ **支持多数据库授权** - 创建账号时一次性授权多个数据库
+- ✅ **增量添加权限** - 为已存在用户添加新数据库权限（使用 `--add-db`）
+- ✅ **批量操作** - 支持逗号分隔的数据库列表
 
 ## 使用方法
 
@@ -35,10 +41,11 @@
 | `-P <port>` | 数据库端口 | 6001 | 否 |
 | `-u <user>` | sys 租户管理员用户名 | root | 否 |
 | `-p <password>` | sys 租户管理员密码 | - | **是** |
-| `-n <name>` | 要创建的只读用户名 | moi_readonly | 否 |
-| `-w <password>` | 只读用户的密码 | - | **是** |
-| `-d <database>` | 要授权的数据库名 | moi | 否 |
+| `-n <name>` | 只读用户名 | moi_readonly | 否 |
+| `-w <password>` | 只读用户的密码 | - | 创建新用户时**必需** |
+| `-d <database>` | 要授权的数据库名（支持逗号分隔多个） | moi | 否 |
 | `-r <role>` | 要创建的角色名 | moi_readonly_role | 否 |
+| `--add-db <db>` | 为已存在用户添加数据库权限（支持逗号分隔） | - | 添加权限时**必需** |
 | `--help` | 显示帮助信息 | - | - |
 
 ### 示例
@@ -69,7 +76,47 @@
   -r analytics_readonly_role
 ```
 
-#### 示例 3: 使用环境变量传递密码（更安全）
+#### 示例 3: 🆕 创建账号并授权多个数据库
+
+```bash
+./create_readonly_account.sh \
+  -h 127.0.0.1 \
+  -P 6001 \
+  -u dump \
+  -p "111" \
+  -n multi_db_reader \
+  -w "pass123" \
+  -d "moi,moi_main,analytics_db"
+```
+
+**效果**: 创建用户 `multi_db_reader`，同时授予 `moi`、`moi_main`、`analytics_db` 三个数据库的读权限。
+
+#### 示例 4: 🆕 为已存在用户添加新数据库权限
+
+```bash
+# 添加单个数据库
+./create_readonly_account.sh \
+  -h 127.0.0.1 \
+  -P 6001 \
+  -u dump \
+  -p "111" \
+  -n moi_readonly \
+  --add-db moi_main
+
+# 添加多个数据库
+./create_readonly_account.sh \
+  -u dump \
+  -p "111" \
+  -n moi_readonly \
+  --add-db "test_db1,test_db2,test_db3"
+```
+
+**特点**:
+- ✅ 不需要提供 `-w` (用户密码) 参数
+- ✅ 自动检查用户和角色是否存在
+- ✅ 支持一次性添加多个数据库
+
+#### 示例 5: 使用环境变量传递密码（更安全）
 
 ```bash
 # 设置环境变量
