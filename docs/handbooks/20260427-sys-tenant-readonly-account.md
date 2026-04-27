@@ -8,6 +8,42 @@
 
 **可以**。MatrixOne 完全支持在 sys 租户中创建只读账号，并且可以精确控制到特定库表的读权限。
 
+## 🚀 快速开始：使用自动化脚本
+
+为了简化只读账号的创建流程，我们提供了自动化脚本工具：
+
+```bash
+# 位置：optools/create_readonly_account.sh
+./optools/create_readonly_account.sh \
+  -h <host> \
+  -P <port> \
+  -u <sys-user> \
+  -p <sys-password> \
+  -n <readonly-username> \
+  -w <readonly-password>
+
+# 示例：为 moi 数据库创建只读账号
+./optools/create_readonly_account.sh \
+  -h 127.0.0.1 \
+  -P 6001 \
+  -u root \
+  -p "admin_pass" \
+  -n moi_readonly \
+  -w "reader_pass"
+```
+
+**脚本功能**：
+- ✅ 自动创建只读角色和用户
+- ✅ 授予指定数据库的 SELECT 权限
+- ✅ 自动验证配置和测试连接
+- ✅ 详细的执行日志和错误处理
+
+**相关文档**：
+- [脚本使用说明](../../optools/README_create_readonly_account.md)
+- [权限验证测试报告](../../optools/READONLY_ACCOUNT_TEST_RESULT.md)
+
+**如果您希望手动创建或了解详细原理，请继续阅读下面的章节。**
+
 ---
 
 ## 方案概述
@@ -663,8 +699,14 @@ ORDER BY u.user_name, rp.privilege_level;
 - 代码位置: `pkg/frontend/authenticate2.go`
 - 系统表定义: `pkg/frontend/predefined.go`
 
+### 🛠️ 相关工具
+
+- [自动化创建脚本](../../optools/create_readonly_account.sh) - 一键创建只读账号
+- [脚本使用文档](../../optools/README_create_readonly_account.md) - 详细使用说明和示例
+- [权限验证报告](../../optools/READONLY_ACCOUNT_TEST_RESULT.md) - 完整的权限测试结果
+
 ---
 
-**文档版本**: v1.0  
+**文档版本**: v1.1  
 **最后更新**: 2026-04-27  
 **适用版本**: MatrixOne 3.0+
